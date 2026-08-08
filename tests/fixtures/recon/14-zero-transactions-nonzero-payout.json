@@ -1,0 +1,25 @@
+{
+  "description": "No transactions but a nonzero payout amount -- must flag unexplained rather than pass silently.",
+  "payout": {
+    "id": "p14",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "10.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [],
+  "expected": {
+    "isExplained": false,
+    "residual": "-10.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "0.00",
+    "refunds": "0.00",
+    "fees": "0.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

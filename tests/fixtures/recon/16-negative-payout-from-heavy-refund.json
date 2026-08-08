@@ -1,0 +1,48 @@
+{
+  "description": "Refunds exceeding new sales in the same payout -- a negative payout, money owed back rather than deposited.",
+  "payout": {
+    "id": "p16",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "-77.60",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "20.00",
+      "fee": "0.60",
+      "net": "19.40",
+      "currency": "GBP",
+      "sourceOrderId": "o20",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "refund",
+      "amount": "-100.00",
+      "fee": "-3.00",
+      "net": "-97.00",
+      "currency": "GBP",
+      "sourceOrderId": "o21",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T11:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "20.00",
+    "refunds": "-100.00",
+    "fees": "-2.40",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

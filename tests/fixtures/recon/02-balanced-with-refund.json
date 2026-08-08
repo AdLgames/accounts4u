@@ -1,0 +1,48 @@
+{
+  "description": "A charge partially refunded within the same payout.",
+  "payout": {
+    "id": "p2",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "77.60",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "100.00",
+      "fee": "3.00",
+      "net": "97.00",
+      "currency": "GBP",
+      "sourceOrderId": "o1",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "refund",
+      "amount": "-20.00",
+      "fee": "-0.60",
+      "net": "-19.40",
+      "currency": "GBP",
+      "sourceOrderId": "o1",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T12:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "-20.00",
+    "fees": "2.40",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

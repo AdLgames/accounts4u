@@ -1,0 +1,59 @@
+{
+  "description": "Odd penny amounts across several charges, to catch any float-precision regressions.",
+  "payout": {
+    "id": "p17",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "96.98",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "33.33",
+      "fee": "1.01",
+      "net": "32.32",
+      "currency": "GBP",
+      "sourceOrderId": "o22",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "charge",
+      "amount": "33.34",
+      "fee": "1.01",
+      "net": "32.33",
+      "currency": "GBP",
+      "sourceOrderId": "o23",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:01:00Z"
+    },
+    {
+      "id": "t3",
+      "type": "charge",
+      "amount": "33.33",
+      "fee": "1.00",
+      "net": "32.33",
+      "currency": "GBP",
+      "sourceOrderId": "o24",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:02:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "0.00",
+    "fees": "3.02",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

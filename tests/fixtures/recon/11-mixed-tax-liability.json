@@ -1,0 +1,52 @@
+{
+  "description": "A payout containing both marketplace-facilitator and merchant-remitted orders in the same batch.",
+  "payout": {
+    "id": "p11",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "97.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "60.00",
+      "fee": "1.80",
+      "net": "58.20",
+      "currency": "GBP",
+      "sourceOrderId": "o12",
+      "taxRemittedByPlatform": true,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "charge",
+      "amount": "40.00",
+      "fee": "1.20",
+      "net": "38.80",
+      "currency": "GBP",
+      "sourceOrderId": "o13",
+      "taxRemittedByPlatform": false,
+      "processedAt": "2026-01-14T11:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "0.00",
+    "fees": "3.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [
+      "o13"
+    ],
+    "platformRemittedTaxOrderIds": [
+      "o12"
+    ]
+  }
+}
