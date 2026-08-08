@@ -7,7 +7,13 @@ function requireEnv(name: string): string {
 }
 
 export const shopifyConfig = {
-  apiVersion: "2025-01",
+  // Shopify sunsets API versions ~1 year after release. 2025-01 was already
+  // retired by the time this was tested live (Aug 2026) -- confirmed against
+  // this app's actual configured version in the Dev Dashboard's Webhooks
+  // section. REST/GraphQL calls against a sunset version fail, and the
+  // backfill's error handling swallows that silently -- update this if the
+  // Dev Dashboard ever shows a newer version than this.
+  apiVersion: "2026-07",
   get apiKey(): string {
     return requireEnv("SHOPIFY_API_KEY");
   },
