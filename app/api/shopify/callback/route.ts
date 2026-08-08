@@ -5,9 +5,8 @@ import { isValidShopDomain } from "@/lib/shopify/domain";
 import { verifyQueryHmac } from "@/lib/shopify/hmac";
 import { exchangeCodeForToken } from "@/lib/shopify/oauth";
 import { registerWebhooks } from "@/lib/shopify/register-webhooks";
+import { verifyState } from "@/lib/shopify/state";
 import { runBackfill } from "@/lib/shopify/sync";
-
-const STATE_COOKIE = "shopify_oauth_state";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -19,9 +18,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid callback parameters" }, { status: 400 });
   }
 
-  const expectedState = request.cookies.get(STATE_COOKIE)?.value;
-  if (!expectedState || expectedState !== state) {
-    return NextResponse.json({ error: "Invalid state" }, { status: 403 });
+  if (!verifyState(state, shop, shopifyConfig.apiSecret)) {
+    return NextResponse.json({ error: "Invalid or expired state" }, { status: 403 });
   }
 
   const rawQuery = request.nextUrl.search.replace(/^\?/, "");
@@ -52,7 +50,8 @@ export async function GET(request: NextRequest) {
     console.error(`runBackfill failed for ${shop}:`, error);
   }
 
-  const response = NextResponse.redirect(new URL("/?connected=1", shopifyConfig.appUrl));
-  response.cookies.delete(STATE_COOKIE);
-  return response;
+  // This request runs at the top level (having broken out of the iframe in
+  // /api/shopify/install), so send the merchant back into Shopify admin
+  // rather than stranding them on our bare domain.
+  return NextResponse.redirect(`https://${shop}/admin/apps/${shopifyConfig.apiKey}`);
 }
