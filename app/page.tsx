@@ -3,6 +3,7 @@ import { buildMonthlyOverview } from "@/lib/dashboard/overview";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "./_components/app-nav";
 import { NotConnected } from "./_components/not-connected";
+import { TrialBanner } from "./_components/trial-banner";
 import { firstParam } from "./_lib/search-params";
 
 const MONTH_NAMES = [
@@ -31,6 +32,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <div className="flex min-h-full flex-col">
       <AppNav shop={shop} current="/" />
+      <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         <h1 className="text-xl font-semibold">Overview</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{monthLabel(overview.month)}</p>

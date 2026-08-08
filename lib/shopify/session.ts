@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/db";
 import { shopifyConfig } from "./config";
 import { isValidShopDomain } from "./domain";
@@ -38,6 +39,8 @@ import { runBackfill } from "./sync";
  * with no working webhooks forever. registerWebhooks is safe to call
  * repeatedly once it has succeeded.
  */
+const TRIAL_DAYS = 14;
+
 export async function exchangeSessionToken(shop: string, idToken: string): Promise<void> {
   if (!isValidShopDomain(shop)) {
     throw new Error(`Invalid shop domain: ${shop}`);
@@ -85,9 +88,12 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
   const refreshTokenExpiresAt = refreshTokenExpiresIn ? new Date(now + refreshTokenExpiresIn * 1000) : null;
 
   const existing = await prisma.store.findUnique({ where: { shopDomain: shop } });
+  const trialEndsAt = new Date(now + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const store = await prisma.store.upsert({
     where: { shopDomain: shop },
-    create: { shopDomain: shop, accessToken, scope, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt },
+    // trialEndsAt only set on genuine first install -- update deliberately
+    // omits it so a later reconnect can't reset an already-running trial.
+    create: { shopDomain: shop, accessToken, scope, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, trialEndsAt },
     update: { accessToken, scope, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt },
   });
 
@@ -98,6 +104,7 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
       await prisma.store.update({ where: { id: store.id }, data: { webhooksRegisteredAt: new Date() } });
     } catch (error) {
       console.error(`registerWebhooks failed for ${shop}:`, error);
+      Sentry.captureException(error, { tags: { shop } });
     }
   }
 
@@ -107,6 +114,7 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
       await runBackfill(store);
     } catch (error) {
       console.error(`runBackfill failed for ${shop}:`, error);
+      Sentry.captureException(error, { tags: { shop } });
     }
   }
 }

@@ -5,6 +5,7 @@ import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { explainPayoutById } from "@/lib/dashboard/payouts";
 import { AppNav } from "../../_components/app-nav";
 import { NotConnected } from "../../_components/not-connected";
+import { TrialBanner } from "../../_components/trial-banner";
 import { firstParam } from "../../_lib/search-params";
 
 function money(currency: string, amount: MinorUnits): string {
@@ -27,6 +28,7 @@ export default async function PayoutDetailPage({ params, searchParams }: PagePro
   return (
     <div className="flex min-h-full flex-col">
       <AppNav shop={shop} current="/payouts" />
+      <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         <Link href={`/payouts?shop=${encodeURIComponent(shop)}`} className="text-sm text-zinc-500 hover:underline">
           ← Payouts

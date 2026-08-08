@@ -33,6 +33,24 @@ model Store {
   // -- and paying its API calls -- on every single page load once it works.
   webhooksRegisteredAt DateTime?
 
+  // Phase 5 billing (PLAN.md): 14-day trial from install, then read-only
+  // until subscribed -- don't delete their data, per PLAN.md, since that's
+  // the reason they come back. subscriptionStatus mirrors Stripe's own
+  // status strings ("trialing" | "active" | "past_due" | "canceled" | ...)
+  // rather than a separate parallel state machine; it only changes once a
+  // Stripe webhook actually fires (see lib/billing/, Stripe account/keys
+  // not wired up in this environment yet).
+  trialEndsAt          DateTime?
+  subscriptionStatus   String    @default("trialing")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  // Set by the cron sync sweep (app/api/shopify/sync) on every run, success
+  // or failure -- backs the admin health page (PLAN.md Phase 5). Null until
+  // the first sweep runs for a store.
+  lastSyncAt    DateTime?
+  lastSyncError String?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
@@ -116,4 +134,21 @@ model ProductCost {
 
   @@unique([storeId, shopifyProductId])
   @@map("product_costs")
+}
+
+// Audit trail for Shopify's mandatory GDPR compliance webhooks (see
+// lib/shopify/compliance.ts). Deliberately not linked to Store via a
+// foreign key -- a shop/redact request deletes the Store row, but the
+// record that we received and handled these requests needs to survive
+// that deletion for compliance purposes.
+model ComplianceRequest {
+  id         String   @id @default(cuid())
+  shopDomain String
+  /** "customers/data_request" | "customers/redact" | "shop/redact" */
+  type    String
+  payload Json
+  handledAt DateTime @default(now())
+
+  @@index([shopDomain])
+  @@map("compliance_requests")
 }

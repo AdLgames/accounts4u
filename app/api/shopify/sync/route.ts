@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/db";
 import { runSyncSweep } from "@/lib/shopify/sync";
 
@@ -19,9 +20,18 @@ export async function GET(request: NextRequest) {
   for (const store of stores) {
     try {
       const counts = await runSyncSweep(store);
+      await prisma.store.update({
+        where: { id: store.id },
+        data: { lastSyncAt: new Date(), lastSyncError: null },
+      });
       results.push({ shopDomain: store.shopDomain, ...counts });
     } catch (error) {
       console.error(`runSyncSweep failed for ${store.shopDomain}:`, error);
+      Sentry.captureException(error, { tags: { shop: store.shopDomain } });
+      await prisma.store.update({
+        where: { id: store.id },
+        data: { lastSyncAt: new Date(), lastSyncError: String(error).slice(0, 1000) },
+      });
       results.push({ shopDomain: store.shopDomain, error: String(error) });
     }
   }
