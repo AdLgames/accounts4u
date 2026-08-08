@@ -2,9 +2,16 @@ import Image from "next/image";
 import { ShopifyBootstrap } from "./shopify-bootstrap";
 
 export default function Home() {
+  // Temporary: NEXT_PUBLIC_ vars are baked in at build time, so this
+  // confirms whether NEXT_PUBLIC_SHOPIFY_API_KEY actually made it into
+  // *this* build rather than guessing from App Bridge's silent failure.
+  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
+  const apiKeyDebug = apiKey ? `set, length ${apiKey.length}` : "MISSING";
+
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+        <p>Debug: NEXT_PUBLIC_SHOPIFY_API_KEY is {apiKeyDebug}</p>
         <ShopifyBootstrap />
         <Image
           className="dark:invert h-5 w-[100px]"
