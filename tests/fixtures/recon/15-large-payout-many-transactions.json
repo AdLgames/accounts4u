@@ -1,0 +1,136 @@
+{
+  "description": "A payout made up of ten identical charges, to exercise summation across many line items.",
+  "payout": {
+    "id": "p15",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "241.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o100",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T09:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o101",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t3",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o102",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T11:00:00Z"
+    },
+    {
+      "id": "t4",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o103",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T12:00:00Z"
+    },
+    {
+      "id": "t5",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o104",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T13:00:00Z"
+    },
+    {
+      "id": "t6",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o105",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T14:00:00Z"
+    },
+    {
+      "id": "t7",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o106",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T15:00:00Z"
+    },
+    {
+      "id": "t8",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o107",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T16:00:00Z"
+    },
+    {
+      "id": "t9",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o108",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T17:00:00Z"
+    },
+    {
+      "id": "t10",
+      "type": "charge",
+      "amount": "25.00",
+      "fee": "0.90",
+      "net": "24.10",
+      "currency": "GBP",
+      "sourceOrderId": "o109",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T18:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "250.00",
+    "refunds": "0.00",
+    "fees": "9.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

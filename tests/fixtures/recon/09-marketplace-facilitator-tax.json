@@ -1,0 +1,39 @@
+{
+  "description": "An order where Shopify remitted tax as marketplace facilitator (e.g. a Shop app order).",
+  "payout": {
+    "id": "p9",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "77.60",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "80.00",
+      "fee": "2.40",
+      "net": "77.60",
+      "currency": "GBP",
+      "sourceOrderId": "o10",
+      "taxRemittedByPlatform": true,
+      "processedAt": "2026-01-14T10:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "80.00",
+    "refunds": "0.00",
+    "fees": "2.40",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": [
+      "o10"
+    ]
+  }
+}

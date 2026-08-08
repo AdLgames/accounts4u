@@ -1,0 +1,48 @@
+{
+  "description": "A refund for an order whose original sale was paid out in an earlier payout -- no matching charge transaction in this payout's set.",
+  "payout": {
+    "id": "p6",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "14.55",
+    "date": "2026-02-01"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "40.00",
+      "fee": "1.20",
+      "net": "38.80",
+      "currency": "GBP",
+      "sourceOrderId": "o9",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "refund",
+      "amount": "-25.00",
+      "fee": "-0.75",
+      "net": "-24.25",
+      "currency": "GBP",
+      "sourceOrderId": "o5",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-02-01T10:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "40.00",
+    "refunds": "-25.00",
+    "fees": "0.45",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

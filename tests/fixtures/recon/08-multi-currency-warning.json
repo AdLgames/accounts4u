@@ -1,0 +1,37 @@
+{
+  "description": "A transaction in a different currency than the payout -- v1 flags this rather than attempting cross-currency arithmetic.",
+  "payout": {
+    "id": "p8",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "48.50",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "50.00",
+      "fee": "1.50",
+      "net": "48.50",
+      "currency": "USD",
+      "sourceOrderId": "o7",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": true,
+    "grossSales": "50.00",
+    "refunds": "0.00",
+    "fees": "1.50",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

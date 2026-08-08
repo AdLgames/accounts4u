@@ -1,0 +1,48 @@
+{
+  "description": "A residual mismatch that appears alongside normal-looking refund activity -- the discrepancy must still surface, not get absorbed into the refund total.",
+  "payout": {
+    "id": "p22",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "50.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "100.00",
+      "fee": "3.00",
+      "net": "97.00",
+      "currency": "GBP",
+      "sourceOrderId": "o50",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "refund",
+      "amount": "-40.00",
+      "fee": "-1.20",
+      "net": "-38.80",
+      "currency": "GBP",
+      "sourceOrderId": "o50",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T12:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": false,
+    "residual": "8.20",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "-40.00",
+    "fees": "1.80",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

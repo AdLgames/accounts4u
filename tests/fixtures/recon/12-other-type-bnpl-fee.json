@@ -1,0 +1,48 @@
+{
+  "description": "An unrecognized transaction type (e.g. a BNPL/installment fee line) falls into the \"other\" bucket instead of crashing.",
+  "payout": {
+    "id": "p12",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "142.50",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "150.00",
+      "fee": "4.50",
+      "net": "145.50",
+      "currency": "GBP",
+      "sourceOrderId": "o14",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "shop_pay_installments_fee",
+      "amount": "-3.00",
+      "fee": "0.00",
+      "net": "-3.00",
+      "currency": "GBP",
+      "sourceOrderId": null,
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T11:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "150.00",
+    "refunds": "0.00",
+    "fees": "4.50",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "-3.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "description": "A reserve hold reducing the payout alongside a normal charge.",
+  "payout": {
+    "id": "p5",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "435.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "500.00",
+      "fee": "15.00",
+      "net": "485.00",
+      "currency": "GBP",
+      "sourceOrderId": "o4",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "reserve",
+      "amount": "-50.00",
+      "fee": "0.00",
+      "net": "-50.00",
+      "currency": "GBP",
+      "sourceOrderId": null,
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:01Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "500.00",
+    "refunds": "0.00",
+    "fees": "15.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "-50.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

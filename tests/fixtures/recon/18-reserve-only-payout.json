@@ -1,0 +1,37 @@
+{
+  "description": "A cycle where funds are only withheld into reserve, with no other activity.",
+  "payout": {
+    "id": "p18",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "-200.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "reserve",
+      "amount": "-200.00",
+      "fee": "0.00",
+      "net": "-200.00",
+      "currency": "GBP",
+      "sourceOrderId": null,
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "0.00",
+    "refunds": "0.00",
+    "fees": "0.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "-200.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

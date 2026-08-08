@@ -1,0 +1,48 @@
+{
+  "description": "A dispute fee large enough to nearly wipe out an unrelated charge in the same payout.",
+  "payout": {
+    "id": "p20",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "3.20",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "dispute",
+      "amount": "-40.00",
+      "fee": "15.00",
+      "net": "-55.00",
+      "currency": "GBP",
+      "sourceOrderId": "o40",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "charge",
+      "amount": "60.00",
+      "fee": "1.80",
+      "net": "58.20",
+      "currency": "GBP",
+      "sourceOrderId": "o41",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T11:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "60.00",
+    "refunds": "0.00",
+    "fees": "16.80",
+    "chargebacks": "-40.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

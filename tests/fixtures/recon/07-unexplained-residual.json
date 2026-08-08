@@ -1,0 +1,37 @@
+{
+  "description": "The stored payout amount does not match what the transactions add up to -- must be flagged unexplained, never silently plugged.",
+  "payout": {
+    "id": "p7",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "90.00",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "100.00",
+      "fee": "3.00",
+      "net": "97.00",
+      "currency": "GBP",
+      "sourceOrderId": "o6",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": false,
+    "residual": "7.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "0.00",
+    "fees": "3.00",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

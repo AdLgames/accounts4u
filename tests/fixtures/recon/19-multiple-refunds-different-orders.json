@@ -1,0 +1,59 @@
+{
+  "description": "Several refunds against different orders alongside a normal charge.",
+  "payout": {
+    "id": "p19",
+    "status": "paid",
+    "currency": "GBP",
+    "amount": "60.63",
+    "date": "2026-01-15"
+  },
+  "transactions": [
+    {
+      "id": "t1",
+      "type": "charge",
+      "amount": "100.00",
+      "fee": "3.00",
+      "net": "97.00",
+      "currency": "GBP",
+      "sourceOrderId": "o31",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T09:00:00Z"
+    },
+    {
+      "id": "t2",
+      "type": "refund",
+      "amount": "-15.00",
+      "fee": "-0.45",
+      "net": "-14.55",
+      "currency": "GBP",
+      "sourceOrderId": "o30",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "t3",
+      "type": "refund",
+      "amount": "-22.50",
+      "fee": "-0.68",
+      "net": "-21.82",
+      "currency": "GBP",
+      "sourceOrderId": "o29",
+      "taxRemittedByPlatform": null,
+      "processedAt": "2026-01-14T11:00:00Z"
+    }
+  ],
+  "expected": {
+    "isExplained": true,
+    "residual": "0.00",
+    "multiCurrencyWarning": false,
+    "grossSales": "100.00",
+    "refunds": "-37.50",
+    "fees": "1.87",
+    "chargebacks": "0.00",
+    "adjustments": "0.00",
+    "reserves": "0.00",
+    "other": "0.00",
+    "merchantRemittedTaxOrderIds": [],
+    "platformRemittedTaxOrderIds": []
+  }
+}

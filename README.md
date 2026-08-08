@@ -7,9 +7,8 @@ for repo conventions.
 ## Getting started
 
 ```bash
-npm install
+npm install   # runs `prisma generate` automatically via postinstall
 cp .env.example .env.local   # fill in DATABASE_URL at minimum
-npx prisma generate
 npm run dev
 ```
 
@@ -25,18 +24,26 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Status
 
-- **Phase 1** (project skeleton): done. Next.js app, Prisma schema, money
-  utilities in `lib/money.ts`, CI running lint/typecheck/test/build.
-- **Phase 2** (Shopify integration, read-only): scaffolded, untested against
-  a live store. OAuth install/callback (`/api/shopify/install`,
-  `/api/shopify/callback`), webhook receiver + registration for
-  `orders/create` and `refunds/create` (`/api/shopify/webhooks`), a 90-day
-  backfill run on install, and a Vercel Cron sweep every 6 hours
-  (`/api/shopify/sync`, see `vercel.json`) as the best-effort-webhook backup.
-  Raw Shopify data lands append-only in `raw_orders`/`raw_transactions`/`raw_payouts`.
+- **Phase 1** (project skeleton): done.
+- **Phase 2** (Shopify integration, read-only): done, verified live against
+  a real dev store. Embedded app using Token Exchange (not the classic
+  OAuth redirect — see `app/page.tsx`/`lib/shopify/session.ts`), webhook
+  registration + receiver for `orders/create`/`refunds/create`, a 90-day
+  backfill, and a Vercel Cron sweep (`/api/shopify/sync`, see `vercel.json`)
+  as the best-effort-webhook backup. Raw Shopify data lands append-only in
+  `raw_orders`/`raw_transactions`/`raw_payouts`. Known gap: nothing refreshes
+  the stored access token before use yet — fine for install-time backfill,
+  but the cron sweep or any call made after the 60-minute token expiry will
+  fail until a refresh-before-use pass is added.
+- **Phase 3** (reconciliation engine): `explainPayout()` in `lib/recon/`,
+  pure and fixture-tested (22 fixtures in `tests/fixtures/recon/`). Not yet
+  wired up to real payout data — `lib/recon/from-raw.ts` converts raw
+  Shopify JSON into the engine's input types but hasn't been checked
+  against a live payout export.
 
-Still needed: a Vercel deployment (`SHOPIFY_APP_URL`, `DATABASE_URL`,
-`SHOPIFY_API_KEY`/`SHOPIFY_API_SECRET`, `CRON_SECRET` as env vars there),
-and a Shopify dev store to actually exercise the OAuth flow — this sandbox
-can't reach Shopify's or Neon's servers, so only the pure logic (HMAC
-verification, shop domain validation) has been tested here.
+Deployed on Vercel, connected to a real Shopify dev store and Neon
+Postgres — env vars (`SHOPIFY_APP_URL`, `DATABASE_URL`, `SHOPIFY_API_KEY`,
+`NEXT_PUBLIC_SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `CRON_SECRET`) are set
+there. This sandbox itself still can't reach Shopify's, Neon's, or Vercel's
+servers directly — all Phase 2 verification happened by the human running
+each step and reporting back logs/query results.
