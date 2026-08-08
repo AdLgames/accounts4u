@@ -29,10 +29,14 @@ import { runBackfill } from "./sync";
  * hour after install (the cron sweep, late webhooks needing an outbound
  * call) will start failing once the stored token expires.
  *
- * Only registers webhooks and runs the backfill on a genuinely new install —
- * this runs on every embedded page load (to keep the stored access token
- * current), and redoing a 90-day backfill on every visit would be wasteful
- * and risks Vercel's function timeout.
+ * Runs the 90-day backfill only on a genuinely new install (redoing it on
+ * every visit would be wasteful and risks Vercel's function timeout), but
+ * retries webhook registration on every connect until it actually
+ * succeeds (tracked via Store.webhooksRegisteredAt) — a failed first
+ * attempt (e.g. protected customer data access not granted yet) used to
+ * never get retried once a Store row existed, silently leaving the app
+ * with no working webhooks forever. registerWebhooks is safe to call
+ * repeatedly once it has succeeded.
  */
 export async function exchangeSessionToken(shop: string, idToken: string): Promise<void> {
   if (!isValidShopDomain(shop)) {
@@ -87,14 +91,18 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
     update: { accessToken, scope, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt },
   });
 
-  if (!existing) {
-    // Best-effort, same caveats as before: shouldn't block the response,
-    // and a large store's backfill could hit Vercel's function timeout.
+  // Best-effort: shouldn't block the response either way.
+  if (!store.webhooksRegisteredAt) {
     try {
       await registerWebhooks(shop, accessToken);
+      await prisma.store.update({ where: { id: store.id }, data: { webhooksRegisteredAt: new Date() } });
     } catch (error) {
       console.error(`registerWebhooks failed for ${shop}:`, error);
     }
+  }
+
+  if (!existing) {
+    // A large store's backfill could hit Vercel's function timeout.
     try {
       await runBackfill(store);
     } catch (error) {

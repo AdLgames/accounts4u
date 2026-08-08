@@ -27,6 +27,12 @@ model Store {
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
 
+  // Null until registerWebhooks actually succeeds. Lets exchangeSessionToken
+  // retry registration on a later connect if the first attempt failed (e.g.
+  // protected customer data access wasn't granted yet), without redoing it
+  // -- and paying its API calls -- on every single page load once it works.
+  webhooksRegisteredAt DateTime?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
