@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { isReadOnly } from "@/lib/billing/access";
 import { formatDecimal, minorUnits, parseDecimal } from "@/lib/money";
 import { listProductsFromOrders } from "@/lib/shopify/products-from-orders";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "../_components/app-nav";
 import { NotConnected } from "../_components/not-connected";
+import { TrialBanner } from "../_components/trial-banner";
 import { firstParam } from "../_lib/search-params";
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
@@ -22,6 +24,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   // declarations.
   const storeId = store.id;
   const shopParam = shop;
+  // The real enforcement: server actions check this themselves rather than
+  // trusting the UI to have disabled the form — a disabled button is just
+  // a hint, not a guarantee, for anyone submitting the form directly.
+  const readOnly = isReadOnly(store);
 
   const settings = await prisma.storeSettings.upsert({
     where: { storeId },
@@ -37,6 +43,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   async function saveGeneralSettings(formData: FormData) {
     "use server";
+    if (readOnly) {
+      redirect(`/settings?shop=${encodeURIComponent(shopParam)}`);
+    }
+
     const taxSetAsidePercent = Math.max(0, Math.min(100, Number(String(formData.get("taxSetAsidePercent") ?? "0")) || 0));
     const monthlyAdSpend = parseDecimal(String(formData.get("monthlyAdSpend") || "0"));
     const recurringExpenses = parseDecimal(String(formData.get("recurringExpenses") || "0"));
@@ -51,6 +61,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   async function saveProductCost(formData: FormData) {
     "use server";
+    if (readOnly) {
+      redirect(`/settings?shop=${encodeURIComponent(shopParam)}`);
+    }
+
     const productId = String(formData.get("productId"));
     const cost = parseDecimal(String(formData.get("cost") || "0"));
 
@@ -66,6 +80,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   return (
     <div className="flex min-h-full flex-col">
       <AppNav shop={shop} current="/settings" />
+      <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         <h1 className="text-xl font-semibold">Settings</h1>
         {saved && <p className="mt-2 text-sm text-green-700 dark:text-green-400">Saved.</p>}
@@ -81,7 +96,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 min={0}
                 max={100}
                 defaultValue={settings.taxSetAsidePercent}
-                className="rounded border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+                disabled={readOnly}
+                className="rounded border border-black/15 px-3 py-2 disabled:opacity-50 dark:border-white/20 dark:bg-black"
               />
               <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 An estimate to help you put money aside — not tax advice.
@@ -94,7 +110,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 inputMode="decimal"
                 name="monthlyAdSpend"
                 defaultValue={formatDecimal(minorUnits(settings.monthlyAdSpend))}
-                className="rounded border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+                disabled={readOnly}
+                className="rounded border border-black/15 px-3 py-2 disabled:opacity-50 dark:border-white/20 dark:bg-black"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -104,12 +121,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 inputMode="decimal"
                 name="recurringExpenses"
                 defaultValue={formatDecimal(minorUnits(settings.recurringExpenses))}
-                className="rounded border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+                disabled={readOnly}
+                className="rounded border border-black/15 px-3 py-2 disabled:opacity-50 dark:border-white/20 dark:bg-black"
               />
             </label>
             <button
               type="submit"
-              className="self-start rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background"
+              disabled={readOnly}
+              className="self-start rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background disabled:opacity-50"
             >
               Save
             </button>
@@ -142,9 +161,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                           : ""
                       }
                       placeholder="0.00"
-                      className="w-24 rounded border border-black/15 px-2 py-1 text-sm dark:border-white/20 dark:bg-black"
+                      disabled={readOnly}
+                      className="w-24 rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
                     />
-                    <button type="submit" className="text-sm font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+                    <button
+                      type="submit"
+                      disabled={readOnly}
+                      className="text-sm font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-200"
+                    >
                       Save
                     </button>
                   </form>

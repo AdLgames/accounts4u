@@ -33,6 +33,18 @@ model Store {
   // -- and paying its API calls -- on every single page load once it works.
   webhooksRegisteredAt DateTime?
 
+  // Phase 5 billing (PLAN.md): 14-day trial from install, then read-only
+  // until subscribed -- don't delete their data, per PLAN.md, since that's
+  // the reason they come back. subscriptionStatus mirrors Stripe's own
+  // status strings ("trialing" | "active" | "past_due" | "canceled" | ...)
+  // rather than a separate parallel state machine; it only changes once a
+  // Stripe webhook actually fires (see lib/billing/, Stripe account/keys
+  // not wired up in this environment yet).
+  trialEndsAt          DateTime?
+  subscriptionStatus   String    @default("trialing")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
