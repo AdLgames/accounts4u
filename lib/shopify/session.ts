@@ -13,6 +13,11 @@ import { runBackfill } from "./sync";
  * verifies the token's signature during the exchange, so we don't need to
  * independently verify it before forwarding.
  *
+ * grant_type and subject_token_type are the standard RFC 8693 urn:ietf:...
+ * strings, but requested_token_type for an offline token is Shopify's own
+ * urn:shopify:... namespace, not the generic IETF one — confirmed live
+ * after the IETF-style guess failed with oauth_error=invalid_requested_token_type.
+ *
  * Only registers webhooks and runs the backfill on a genuinely new install —
  * this runs on every embedded page load (to keep the stored access token
  * current), and redoing a 90-day backfill on every visit would be wasteful
@@ -32,7 +37,7 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
       subject_token: idToken,
       subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
-      requested_token_type: "urn:ietf:params:oauth:token-type:offline_access_token",
+      requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
     }),
   });
 
