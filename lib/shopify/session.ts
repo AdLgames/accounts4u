@@ -18,14 +18,16 @@ import { runBackfill } from "./sync";
  * urn:shopify:... namespace, not the generic IETF one — confirmed live
  * after the IETF-style guess failed with oauth_error=invalid_requested_token_type.
  *
- * expiring: 1 is required — confirmed live after omitting it produced a
- * non-expiring token that every subsequent Admin API call then rejected
- * with "Non-expiring access tokens are no longer accepted". Shopify
- * returns a 60-minute access token plus a 90-day refresh token; both get
- * stored, though nothing refreshes the access token before use yet — a
- * follow-up, since anything that runs more than an hour after install
- * (the cron sweep, late webhooks needing an outbound call) will start
- * failing once the stored token expires.
+ * expiring=1 is required to get an expiring token instead of the
+ * (now-rejected) non-expiring kind. Confirmed live that sending it as a
+ * JSON body field doesn't work — Shopify's own docs show this endpoint
+ * called with a form-encoded body, and switching to that (instead of
+ * just tweaking the JSON value) is what actually got expiring tokens
+ * back. Shopify returns a 60-minute access token plus a 90-day refresh
+ * token; both get stored, though nothing refreshes the access token
+ * before use yet — a follow-up, since anything that runs more than an
+ * hour after install (the cron sweep, late webhooks needing an outbound
+ * call) will start failing once the stored token expires.
  *
  * Only registers webhooks and runs the backfill on a genuinely new install —
  * this runs on every embedded page load (to keep the stored access token
@@ -37,18 +39,23 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
     throw new Error(`Invalid shop domain: ${shop}`);
   }
 
+  const body = new URLSearchParams({
+    client_id: shopifyConfig.apiKey,
+    client_secret: shopifyConfig.apiSecret,
+    grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+    subject_token: idToken,
+    subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
+    requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+    expiring: "1",
+  });
+
   const exchangeResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: shopifyConfig.apiKey,
-      client_secret: shopifyConfig.apiSecret,
-      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-      subject_token: idToken,
-      subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
-      requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
-      expiring: 1,
-    }),
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body,
   });
 
   if (!exchangeResponse.ok) {
