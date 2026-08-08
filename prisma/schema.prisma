@@ -18,6 +18,15 @@ model Store {
   scope       String
   installedAt DateTime @default(now())
 
+  // Shopify requires expiring offline tokens now (mandatory for all public
+  // apps by 2027-01-01) -- a 60-minute access token plus a 90-day refresh
+  // token, both returned from the same token-exchange call. Nullable since
+  // rows created before this field existed won't have them; a proper
+  // refresh-before-use flow is a follow-up, not built yet.
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
