@@ -1,0 +1,68 @@
+// Phase 1/2 skeleton. Models are added as each phase needs them.
+// Requires DATABASE_URL (Neon or Supabase Postgres connection string) at
+// migrate/generate time — see README.md for setup.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  shopDomain  String   @unique
+  accessToken String
+  scope       String
+  installedAt DateTime @default(now())
+
+  rawOrders       RawOrder[]
+  rawTransactions RawTransaction[]
+  rawPayouts      RawPayout[]
+
+  @@map("stores")
+}
+
+// Raw data is immutable (see CLAUDE.md): each sync (backfill, webhook, or
+// sweep) appends a new row rather than updating an existing one, so
+// raw_orders/raw_transactions/raw_payouts are an append-only log of exactly
+// what Shopify sent. Derived/current-state tables are built separately in
+// Phase 3, on top of this log.
+
+model RawOrder {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  shopifyId  String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([storeId, shopifyId])
+  @@map("raw_orders")
+}
+
+model RawTransaction {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  shopifyId  String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([storeId, shopifyId])
+  @@map("raw_transactions")
+}
+
+model RawPayout {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  shopifyId  String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([storeId, shopifyId])
+  @@map("raw_payouts")
+}
