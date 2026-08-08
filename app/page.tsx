@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { ShopifyBootstrap } from "./shopify-bootstrap";
+import { UrlDebug } from "./url-debug";
 
 export default function Home() {
   // Temporary: NEXT_PUBLIC_ vars are baked in at build time, so this
@@ -12,6 +13,7 @@ export default function Home() {
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <p>Debug: NEXT_PUBLIC_SHOPIFY_API_KEY is {apiKeyDebug}</p>
+        <UrlDebug />
         <ShopifyBootstrap />
         <Image
           className="dark:invert h-5 w-[100px]"
