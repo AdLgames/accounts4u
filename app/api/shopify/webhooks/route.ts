@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { shopifyConfig } from "@/lib/shopify/config";
+import { handleCustomersDataRequest, handleCustomersRedact, handleShopRedact } from "@/lib/shopify/compliance";
 import { verifyWebhookHmac } from "@/lib/shopify/hmac";
 
 // Delivery headers use the REST-style topic string even for subscriptions
@@ -24,13 +25,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing shop domain" }, { status: 400 });
   }
 
+  const payload = JSON.parse(rawBody) as Record<string, unknown>;
+
+  // Mandatory GDPR compliance webhooks (registered separately from the rest
+  // — see lib/shopify/register-webhooks.ts — since Shopify only lets these
+  // three be configured app-wide via the Dev Dashboard/CLI, not per-shop
+  // through the API). Handled ahead of the store lookup below: shop/redact
+  // can arrive after we've already deleted the Store row, and each handler
+  // does its own lookup and logs an audit trail either way.
+  if (topic === "customers/data_request") {
+    await handleCustomersDataRequest(shopDomain, payload);
+    return NextResponse.json({ ok: true });
+  }
+  if (topic === "customers/redact") {
+    await handleCustomersRedact(shopDomain, payload);
+    return NextResponse.json({ ok: true });
+  }
+  if (topic === "shop/redact") {
+    await handleShopRedact(shopDomain, payload);
+    return NextResponse.json({ ok: true });
+  }
+
   const store = await prisma.store.findUnique({ where: { shopDomain } });
   if (!store) {
     // Unknown store (e.g. uninstalled) — acknowledge so Shopify stops retrying.
     return NextResponse.json({ ok: true });
   }
 
-  const payload = JSON.parse(rawBody) as Record<string, unknown>;
   const shopifyId = String(payload.id ?? payload.admin_graphql_api_id ?? "unknown");
 
   const table = TOPIC_TABLE[topic as keyof typeof TOPIC_TABLE];

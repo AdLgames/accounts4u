@@ -117,3 +117,20 @@ model ProductCost {
   @@unique([storeId, shopifyProductId])
   @@map("product_costs")
 }
+
+// Audit trail for Shopify's mandatory GDPR compliance webhooks (see
+// lib/shopify/compliance.ts). Deliberately not linked to Store via a
+// foreign key -- a shop/redact request deletes the Store row, but the
+// record that we received and handled these requests needs to survive
+// that deletion for compliance purposes.
+model ComplianceRequest {
+  id         String   @id @default(cuid())
+  shopDomain String
+  /** "customers/data_request" | "customers/redact" | "shop/redact" */
+  type    String
+  payload Json
+  handledAt DateTime @default(now())
+
+  @@index([shopDomain])
+  @@map("compliance_requests")
+}
