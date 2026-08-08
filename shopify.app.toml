@@ -1,0 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "9a4b6212b11ad4eaf35923b8135eca47"
+application_url = "https://accounts4u.vercel.app"
+embedded = true
+name = "accounts4u"
+
+[webhooks]
+api_version = "2026-07"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,read_shopify_payments_payouts"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://accounts4u.vercel.app/api/auth/callback",
+  "https://accounts4u.vercel.app/api/shopify/callback"
+]
