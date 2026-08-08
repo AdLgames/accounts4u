@@ -45,6 +45,12 @@ model Store {
   stripeCustomerId     String?
   stripeSubscriptionId String?
 
+  // Set by the cron sync sweep (app/api/shopify/sync) on every run, success
+  // or failure -- backs the admin health page (PLAN.md Phase 5). Null until
+  // the first sweep runs for a store.
+  lastSyncAt    DateTime?
+  lastSyncError String?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]

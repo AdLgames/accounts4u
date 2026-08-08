@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/db";
 import { shopifyConfig } from "./config";
 import { isValidShopDomain } from "./domain";
@@ -103,6 +104,7 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
       await prisma.store.update({ where: { id: store.id }, data: { webhooksRegisteredAt: new Date() } });
     } catch (error) {
       console.error(`registerWebhooks failed for ${shop}:`, error);
+      Sentry.captureException(error, { tags: { shop } });
     }
   }
 
@@ -112,6 +114,7 @@ export async function exchangeSessionToken(shop: string, idToken: string): Promi
       await runBackfill(store);
     } catch (error) {
       console.error(`runBackfill failed for ${shop}:`, error);
+      Sentry.captureException(error, { tags: { shop } });
     }
   }
 }

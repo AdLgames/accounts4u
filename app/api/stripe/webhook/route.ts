@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { getStripeClient, stripeConfig } from "@/lib/stripe/client";
@@ -60,5 +61,6 @@ async function updateStore(storeId: string, data: { subscriptionStatus: string; 
     await prisma.store.update({ where: { id: storeId }, data });
   } catch (error) {
     console.error(`Failed to update store ${storeId} from Stripe webhook:`, error);
+    Sentry.captureException(error, { tags: { storeId } });
   }
 }
