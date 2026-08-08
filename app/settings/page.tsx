@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { isReadOnly } from "@/lib/billing/access";
+import { daysLeftInTrial, isReadOnly } from "@/lib/billing/access";
 import { formatDecimal, minorUnits, parseDecimal } from "@/lib/money";
 import { listProductsFromOrders } from "@/lib/shopify/products-from-orders";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
@@ -28,6 +28,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   // trusting the UI to have disabled the form — a disabled button is just
   // a hint, not a guarantee, for anyone submitting the form directly.
   const readOnly = isReadOnly(store);
+  const trialDaysLeft = daysLeftInTrial(store);
 
   const settings = await prisma.storeSettings.upsert({
     where: { storeId },
@@ -176,6 +177,43 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Billing</h2>
+          <div className="mt-3 flex items-center justify-between gap-4 rounded border border-black/15 px-4 py-3 dark:border-white/20">
+            <div className="text-sm">
+              <p className="font-medium">
+                {store.subscriptionStatus === "active"
+                  ? "Active subscription"
+                  : store.subscriptionStatus === "trialing"
+                    ? `Free trial${trialDaysLeft !== null ? ` — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left` : ""}`
+                    : store.subscriptionStatus === "canceled"
+                      ? "Subscription canceled"
+                      : `Subscription: ${store.subscriptionStatus}`}
+              </p>
+              {readOnly && (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Your trial has ended. Subscribe to keep editing settings.
+                </p>
+              )}
+            </div>
+            {store.stripeCustomerId ? (
+              <a
+                href={`/api/stripe/portal?shop=${encodeURIComponent(shop)}`}
+                className="shrink-0 rounded-full border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              >
+                Manage billing
+              </a>
+            ) : (
+              <a
+                href={`/api/stripe/checkout?shop=${encodeURIComponent(shop)}`}
+                className="shrink-0 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background"
+              >
+                Subscribe
+              </a>
+            )}
+          </div>
         </section>
       </main>
     </div>
