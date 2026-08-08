@@ -1,20 +1,16 @@
 export const metadata = { title: "Terms of Service — PayoutClear" };
 
-// NOTE: bracketed [placeholders] are business/legal details (registered
-// entity, address, governing jurisdiction, contact address) that need to
-// be filled in by the operator before this page is relied on for real —
-// left as placeholders rather than invented.
 export default function TermsOfServicePage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 text-sm leading-relaxed">
       <h1 className="text-xl font-semibold">Terms of Service</h1>
-      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Last updated: [date]</p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Last updated: 8 August 2026</p>
 
       <Section title="The service">
         <p>
           PayoutClear (&ldquo;the app&rdquo;) connects to your Shopify store to reconcile payouts and estimate true
-          profit and tax set-aside. It is operated by [legal entity name]. By connecting your store, you agree to
-          these terms.
+          profit and tax set-aside. It is operated by George Beevor, trading as a sole trader in England. By
+          connecting your store, you agree to these terms.
         </p>
       </Section>
 
@@ -54,7 +50,7 @@ export default function TermsOfServicePage() {
 
       <Section title="Liability">
         <p>
-          The app is provided &ldquo;as is&rdquo;. To the maximum extent permitted by law, [legal entity name] isn&apos;t
+          The app is provided &ldquo;as is&rdquo;. To the maximum extent permitted by law, George Beevor isn&apos;t
           liable for indirect or consequential losses arising from your use of the app, including decisions made
           based on figures it shows you.
         </p>
@@ -72,11 +68,11 @@ export default function TermsOfServicePage() {
       </Section>
 
       <Section title="Governing law">
-        <p>These terms are governed by the laws of [jurisdiction].</p>
+        <p>These terms are governed by the laws of England and Wales.</p>
       </Section>
 
       <Section title="Contact">
-        <p>Questions about these terms: [contact email].</p>
+        <p>Questions about these terms: chessli1995@gmail.com.</p>
       </Section>
     </main>
   );
