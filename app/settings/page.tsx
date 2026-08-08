@@ -5,6 +5,7 @@ import { formatDecimal, minorUnits, parseDecimal } from "@/lib/money";
 import { listProductsFromOrders } from "@/lib/shopify/products-from-orders";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "../_components/app-nav";
+import { LegalFooter } from "../_components/legal-footer";
 import { NotConnected } from "../_components/not-connected";
 import { TrialBanner } from "../_components/trial-banner";
 import { firstParam } from "../_lib/search-params";
@@ -216,6 +217,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </div>
         </section>
       </main>
+      <LegalFooter />
     </div>
   );
 }
