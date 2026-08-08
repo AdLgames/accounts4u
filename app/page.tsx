@@ -1,20 +1,30 @@
 import Image from "next/image";
-import { ShopifyBootstrap } from "./shopify-bootstrap";
-import { UrlDebug } from "./url-debug";
+import { isValidShopDomain } from "@/lib/shopify/domain";
+import { exchangeSessionToken } from "@/lib/shopify/session";
 
-export default function Home() {
-  // Temporary: NEXT_PUBLIC_ vars are baked in at build time, so this
-  // confirms whether NEXT_PUBLIC_SHOPIFY_API_KEY actually made it into
-  // *this* build rather than guessing from App Bridge's silent failure.
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
-  const apiKeyDebug = apiKey ? `set, length ${apiKey.length}` : "MISSING";
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const params = await searchParams;
+  const shop = firstParam(params.shop);
+  const idToken = firstParam(params.id_token);
+
+  let connectionStatus: string | null = null;
+  if (shop && idToken && isValidShopDomain(shop)) {
+    try {
+      await exchangeSessionToken(shop, idToken);
+      connectionStatus = "Connected to Shopify.";
+    } catch (error) {
+      connectionStatus = `Couldn't connect to Shopify: ${String(error)}`;
+    }
+  }
 
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <p>Debug: NEXT_PUBLIC_SHOPIFY_API_KEY is {apiKeyDebug}</p>
-        <UrlDebug />
-        <ShopifyBootstrap />
+        {connectionStatus && <p>{connectionStatus}</p>}
         <Image
           className="dark:invert h-5 w-[100px]"
           src="/next.svg"
