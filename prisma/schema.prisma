@@ -30,6 +30,8 @@ model Store {
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
+  settings        StoreSettings?
+  productCosts    ProductCost[]
 
   @@map("stores")
 }
@@ -74,4 +76,38 @@ model RawPayout {
 
   @@index([storeId, shopifyId])
   @@map("raw_payouts")
+}
+
+// Our own app data (not synced from Shopify), so ordinary update-in-place
+// semantics apply here -- unlike the raw_* tables above.
+
+model StoreSettings {
+  id      String @id @default(cuid())
+  storeId String @unique
+  store   Store  @relation(fields: [storeId], references: [id])
+
+  /** Whole percent, e.g. 25 means set aside 25% of net sales. An estimate, not tax advice -- see PLAN.md. */
+  taxSetAsidePercent Int @default(25)
+  /** Minor units. Manual monthly entry v1 (ad platform APIs later, per PLAN.md). */
+  monthlyAdSpend Int @default(0)
+  /** Minor units. Rent, software subscriptions, etc. */
+  recurringExpenses Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("store_settings")
+}
+
+model ProductCost {
+  id              String @id @default(cuid())
+  storeId         String
+  store           Store  @relation(fields: [storeId], references: [id])
+  shopifyProductId String
+  /** Minor units, cost per single unit of this product. */
+  costPerUnit Int
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, shopifyProductId])
+  @@map("product_costs")
 }
