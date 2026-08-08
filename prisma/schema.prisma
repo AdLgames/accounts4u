@@ -1,0 +1,18 @@
+// Phase 1 skeleton. Models are added as each phase needs them.
+// Requires DATABASE_URL (Neon or Supabase Postgres connection string) at
+// migrate/generate time — see README.md for setup.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  shopDomain String  @unique
+  createdAt DateTime @default(now())
+}
