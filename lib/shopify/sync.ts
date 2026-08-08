@@ -2,8 +2,10 @@ import type { Prisma, Store } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { shopifyConfig } from "./config";
 import { fetchAllPages } from "./rest";
+import { getValidAccessToken } from "./token-refresh";
 
 type SyncableStore = Pick<Store, "id" | "shopDomain" | "accessToken">;
+type RefreshableSyncableStore = Pick<Store, "id" | "shopDomain" | "accessToken" | "refreshToken" | "accessTokenExpiresAt">;
 
 // REST (not GraphQL) is used here deliberately: it returns orders/payouts in
 // the same shape Shopify's webhooks send, so raw_orders/raw_payouts stay
@@ -80,23 +82,29 @@ export async function syncTransactionsForPayouts(store: SyncableStore, payoutIds
 
 type SyncCounts = { orders: number; payouts: number; transactions: number };
 
-async function runSync(store: SyncableStore, since: Date): Promise<SyncCounts> {
-  const orders = await syncOrders(store, since);
-  const { count: payouts, payoutIds } = await syncPayouts(store, since);
-  const transactions = await syncTransactionsForPayouts(store, payoutIds);
+async function runSync(store: RefreshableSyncableStore, since: Date): Promise<SyncCounts> {
+  // Refreshes first if the stored access token is expired or close to it —
+  // this is what makes the cron sweep (which can run long after the
+  // 60-minute token lifetime) actually keep working.
+  const accessToken = await getValidAccessToken(store);
+  const freshStore: SyncableStore = { id: store.id, shopDomain: store.shopDomain, accessToken };
+
+  const orders = await syncOrders(freshStore, since);
+  const { count: payouts, payoutIds } = await syncPayouts(freshStore, since);
+  const transactions = await syncTransactionsForPayouts(freshStore, payoutIds);
   return { orders, payouts, transactions };
 }
 
 const BACKFILL_DAYS = 90;
 
-export async function runBackfill(store: SyncableStore): Promise<SyncCounts> {
+export async function runBackfill(store: RefreshableSyncableStore): Promise<SyncCounts> {
   const since = new Date();
   since.setDate(since.getDate() - BACKFILL_DAYS);
   return runSync(store, since);
 }
 
 /** Backup for best-effort webhooks (PLAN.md Phase 2) — re-pulls a trailing window so anything a missed webhook dropped still lands. */
-export async function runSyncSweep(store: SyncableStore, sinceHours = 48): Promise<SyncCounts> {
+export async function runSyncSweep(store: RefreshableSyncableStore, sinceHours = 48): Promise<SyncCounts> {
   const since = new Date();
   since.setHours(since.getHours() - sinceHours);
   return runSync(store, since);
