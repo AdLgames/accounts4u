@@ -25,10 +25,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Status
 
-Phase 1 (project skeleton) is in place: Next.js app, Prisma schema stub,
-money utilities in `lib/money.ts`, CI running lint/typecheck/test/build.
+- **Phase 1** (project skeleton): done. Next.js app, Prisma schema, money
+  utilities in `lib/money.ts`, CI running lint/typecheck/test/build.
+- **Phase 2** (Shopify integration, read-only): scaffolded, untested against
+  a live store. OAuth install/callback (`/api/shopify/install`,
+  `/api/shopify/callback`), webhook receiver + registration for
+  `orders/create` and `refunds/create` (`/api/shopify/webhooks`), a 90-day
+  backfill run on install, and a Vercel Cron sweep every 6 hours
+  (`/api/shopify/sync`, see `vercel.json`) as the best-effort-webhook backup.
+  Raw Shopify data lands append-only in `raw_orders`/`raw_transactions`/`raw_payouts`.
 
-Still needed before later phases: a real Postgres database (Neon or
-Supabase), a Vercel deployment, a Shopify Partner account for OAuth
-credentials, and a Stripe account — none of these can be provisioned from
-this environment.
+Still needed: a Vercel deployment (`SHOPIFY_APP_URL`, `DATABASE_URL`,
+`SHOPIFY_API_KEY`/`SHOPIFY_API_SECRET`, `CRON_SECRET` as env vars there),
+and a Shopify dev store to actually exercise the OAuth flow — this sandbox
+can't reach Shopify's or Neon's servers, so only the pure logic (HMAC
+verification, shop domain validation) has been tested here.
