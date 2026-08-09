@@ -1,8 +1,10 @@
-import { formatDecimal } from "@/lib/money";
-import { buildMonthlyOverview } from "@/lib/dashboard/overview";
+import { formatDecimal, minorUnits } from "@/lib/money";
+import type { MinorUnits } from "@/lib/money";
+import { buildProfitAndLoss } from "@/lib/dashboard/profit-and-loss";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "./_components/app-nav";
 import { NotConnected } from "./_components/not-connected";
+import { Stat } from "./_components/stat";
 import { TrialBanner } from "./_components/trial-banner";
 import { firstParam } from "./_lib/search-params";
 
@@ -16,7 +18,11 @@ function monthLabel(month: string): string {
   return `${MONTH_NAMES[monthIndex - 1]} ${year}`;
 }
 
-export default async function Home({ searchParams }: PageProps<"/">) {
+function money(currency: string, amount: MinorUnits): string {
+  return `${currency} ${formatDecimal(amount)}`;
+}
+
+export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const shop = firstParam(params.shop);
   const idToken = firstParam(params.id_token);
@@ -26,51 +32,67 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     return <NotConnected />;
   }
 
-  const overview = await buildMonthlyOverview(store.id);
-  const currency = overview.currency ?? "";
+  const statement = await buildProfitAndLoss(store.id);
+  const currency = statement.currency ?? "";
 
   return (
     <div className="flex min-h-full flex-col">
       <AppNav shop={shop} current="/" />
       <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-        <h1 className="text-xl font-semibold">Overview</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{monthLabel(overview.month)}</p>
+        <h1 className="text-xl font-semibold">Profit &amp; Loss</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{monthLabel(statement.month)}</p>
 
-        {overview.payoutCount === 0 ? (
+        {statement.payoutCount === 0 ? (
           <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
             No payouts yet this month — check back once Shopify deposits money to your bank account.
           </p>
         ) : (
-          <div className="mt-6 flex flex-col gap-6">
-            <Stat
-              label="True profit this month"
-              value={`${currency} ${formatDecimal(overview.trueProfit)}`}
-              detail="Net sales after Shopify's fees and refunds, minus product costs, ad spend, and recurring expenses."
-            />
-            <Stat
-              label="Set aside for tax"
-              value={`${currency} ${formatDecimal(overview.taxSetAside)}`}
-              detail="An estimate based on the percentage set in Settings — not tax advice."
-            />
-            {overview.lastPayout && (
+          <>
+            <div className="mt-6 flex flex-col gap-6">
               <Stat
-                label="Last payout"
-                value={`${overview.lastPayout.currency} ${formatDecimal(overview.lastPayout.amount)}`}
-                detail={overview.lastPayout.date.toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
+                label="Net profit this month"
+                value={money(currency, statement.netProfit)}
+                detail="Net sales after Shopify's fees and refunds, minus product costs and operating expenses."
               />
-            )}
-          </div>
+              <Stat
+                label="Set aside for tax"
+                value={money(currency, statement.taxSetAside)}
+                detail="An estimate based on the percentage set in Inputs — not tax advice."
+              />
+            </div>
+
+            <dl className="mt-8 flex flex-col gap-2 text-sm">
+              <StatementRow label="Revenue" value={statement.revenue} currency={currency} />
+              {statement.refunds !== 0 && <StatementRow label="Refunds" value={minorUnits(-statement.refunds)} currency={currency} />}
+              <StatementRow label="Net sales" value={statement.netSales} currency={currency} emphasis />
+              <StatementRow label="Cost of goods sold" value={minorUnits(-statement.cogs)} currency={currency} />
+              <StatementRow label="Gross profit" value={statement.grossProfit} currency={currency} emphasis />
+
+              {statement.operatingExpenses.map((expense) => (
+                <StatementRow key={expense.category} label={expense.category} value={minorUnits(-expense.amount)} currency={currency} indent />
+              ))}
+              {statement.operatingExpenses.length > 0 && (
+                <StatementRow label="Operating expenses" value={minorUnits(-statement.operatingExpensesTotal)} currency={currency} />
+              )}
+
+              {statement.fees !== 0 && <StatementRow label="Payment fees" value={minorUnits(-statement.fees)} currency={currency} />}
+              {statement.chargebacks !== 0 && (
+                <StatementRow label="Chargebacks" value={minorUnits(-statement.chargebacks)} currency={currency} />
+              )}
+              {statement.adjustmentsAndReserves !== 0 && (
+                <StatementRow label="Adjustments & reserves" value={statement.adjustmentsAndReserves} currency={currency} />
+              )}
+
+              <StatementRow label="Net profit" value={statement.netProfit} currency={currency} emphasis />
+            </dl>
+          </>
         )}
 
-        {overview.unexplainedPayoutCount > 0 && (
+        {statement.unexplainedPayoutCount > 0 && (
           <p className="mt-6 rounded border border-amber-400/50 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            {overview.unexplainedPayoutCount} payout(s) this month don&apos;t fully add up yet — check the Payouts screen for
-            details.
+            {statement.unexplainedPayoutCount} payout(s) this month don&apos;t fully add up yet ({money(currency, statement.unexplainedResidual)}{" "}
+            unexplained) — this figure is still reflected honestly above, not hidden. Check the Payouts screen for details.
           </p>
         )}
       </main>
@@ -78,12 +100,26 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   );
 }
 
-function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
+function StatementRow({
+  label,
+  value,
+  currency,
+  emphasis,
+  indent,
+}: {
+  label: string;
+  value: MinorUnits;
+  currency: string;
+  emphasis?: boolean;
+  indent?: boolean;
+}) {
+  const sign = value < 0 ? "−" : "";
   return (
-    <div>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className="text-3xl font-semibold tracking-tight">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{detail}</p>
+    <div className={`flex items-center justify-between ${emphasis ? "border-t border-black/10 pt-2 font-semibold dark:border-white/10" : ""}`}>
+      <dt className={indent ? "pl-4 text-zinc-500 dark:text-zinc-400" : "text-zinc-600 dark:text-zinc-400"}>{label}</dt>
+      <dd>
+        {sign} {money(currency, minorUnits(Math.abs(value)))}
+      </dd>
     </div>
   );
 }

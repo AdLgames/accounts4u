@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 const TABS = [
-  { href: "/", label: "Overview" },
+  { href: "/", label: "P&L" },
+  { href: "/balance-sheet", label: "Balance Sheet" },
+  { href: "/cashflow", label: "Cashflow" },
   { href: "/payouts", label: "Payouts" },
-  { href: "/settings", label: "Settings" },
+  { href: "/inputs", label: "Inputs" },
 ] as const;
 
 /** Every internal link carries ?shop= forward — see lib/shopify/current-store.ts for why. */
