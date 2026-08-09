@@ -56,6 +56,7 @@ model Store {
   rawPayouts      RawPayout[]
   settings        StoreSettings?
   productCosts    ProductCost[]
+  bills           Bill[]
 
   @@map("stores")
 }
@@ -112,9 +113,9 @@ model StoreSettings {
 
   /** Whole percent, e.g. 25 means set aside 25% of net sales. An estimate, not tax advice -- see PLAN.md. */
   taxSetAsidePercent Int @default(25)
-  /** Minor units. Manual monthly entry v1 (ad platform APIs later, per PLAN.md). */
+  /** Minor units. Superseded by the itemized Bill model -- no longer read by any code, dropped in a follow-up migration once that's confirmed live (see prisma/migrations/20260808210000_*). */
   monthlyAdSpend Int @default(0)
-  /** Minor units. Rent, software subscriptions, etc. */
+  /** Minor units. Superseded by the itemized Bill model -- see monthlyAdSpend comment above. */
   recurringExpenses Int @default(0)
 
   updatedAt DateTime @updatedAt
@@ -134,6 +135,40 @@ model ProductCost {
 
   @@unique([storeId, shopifyProductId])
   @@map("product_costs")
+}
+
+// Itemized bills/expenses (Phase 6 finance dashboard rework): replaces the
+// old flat StoreSettings.monthlyAdSpend/recurringExpenses numbers. Entered
+// manually or via CSV import (lib/bills/csv.ts) -- Shopify's own Bill Pay
+// feature has no public API to read from, confirmed via research.
+model Bill {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+
+  vendor String
+  /** Validated against BILL_CATEGORIES (lib/bills/types.ts) at the app layer, not a DB enum -- same pattern as Store.subscriptionStatus. */
+  category String
+  /** Minor units. Always positive -- a bill is a cost, never modeled as negative income. */
+  amount Int
+
+  /** Accrual date -- which P&L period this expense counts in (lib/dashboard/profit-and-loss.ts). */
+  incurredOn DateTime @db.Date
+  /** "unpaid" | "paid". */
+  status String @default("unpaid")
+  /** Cash date -- which Cashflow period this counts in (lib/dashboard/cashflow.ts). Required iff status = "paid", enforced in lib/bills/db.ts. */
+  paidOn DateTime? @db.Date
+
+  notes String?
+  /** Reserved for a future invoice-upload feature (storage provider not yet decided) -- unused by any code today. */
+  receiptUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, incurredOn])
+  @@index([storeId, paidOn])
+  @@map("bills")
 }
 
 // Audit trail for Shopify's mandatory GDPR compliance webhooks (see
