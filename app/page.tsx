@@ -46,9 +46,9 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
         <h1 className="text-xl font-semibold">Profit &amp; Loss</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{monthLabel(statement.month)}</p>
 
-        {statement.transactionCount === 0 && (
+        {statement.saleCount === 0 && (
           <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-            No customer payments captured yet this month — the statement below will fill in as orders come in.
+            No orders yet this month — the statement below will fill in as orders come in.
           </p>
         )}
 
@@ -56,7 +56,7 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
           <Stat
             label="Net profit this month"
             value={money(currency, statement.netProfit)}
-            detail="Net sales after Shopify's fees and refunds, minus product costs and operating expenses."
+            detail="Net sales after refunds, payment fees (Shopify Payments only), product costs, and operating expenses."
           />
           <Stat
             label="Set aside for tax"
@@ -83,17 +83,20 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
           {statement.chargebacks !== 0 && (
             <StatementRow label="Chargebacks" value={minorUnits(-statement.chargebacks)} currency={currency} />
           )}
-          {statement.adjustmentsAndReserves !== 0 && (
-            <StatementRow label="Adjustments & reserves" value={statement.adjustmentsAndReserves} currency={currency} />
-          )}
-
           <StatementRow label="Net profit" value={statement.netProfit} currency={currency} emphasis />
         </dl>
 
+        {statement.otherPaymentActivity !== 0 && (
+          <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+            {money(currency, statement.otherPaymentActivity)} of other Shopify Payments activity this month (adjustments/reserves)
+            — shown for reference, not included in Net Profit above.
+          </p>
+        )}
+
         {statement.pendingCashAmount !== 0 && (
-          <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
-            {money(currency, statement.pendingCashAmount)} of this month&apos;s revenue hasn&apos;t reached your bank yet — see
-            Payouts.
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            {money(currency, statement.pendingCashAmount)} of this month&apos;s Shopify Payments revenue hasn&apos;t reached your
+            bank yet — see Payouts.
           </p>
         )}
       </main>
