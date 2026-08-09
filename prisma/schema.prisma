@@ -51,6 +51,14 @@ model Store {
   lastSyncAt    DateTime?
   lastSyncError String?
 
+  // Watermark for syncBalanceTransactions (lib/shopify/sync.ts) -- the
+  // shopify_payments/balance/transactions.json endpoint has no date-range
+  // filter (confirmed: payout_id, since_id, test are the only query params),
+  // so incremental sync uses the highest transaction id seen so far instead
+  // of a date window. Null means "no watermark yet", i.e. page the store's
+  // entire lifetime history on the next sync.
+  lastBalanceTransactionId String?
+
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]

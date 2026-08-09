@@ -1,6 +1,7 @@
+import { categorizeTransactions } from "../recon/categorize-transactions";
 import { prisma } from "../db";
 import { add, minorUnits, subtract, type MinorUnits } from "../money";
-import { loadReconciledPayouts, type ReconciledPayout } from "./payout-ledger";
+import { loadTransactionLedger, type LedgerEntry } from "./transaction-ledger";
 
 export interface CashflowStatement {
   /** "YYYY-MM", UTC. */
@@ -9,30 +10,29 @@ export interface CashflowStatement {
   cashIn: MinorUnits;
   cashOut: MinorUnits;
   netCashFlow: MinorUnits;
-  payoutCount: number;
+  transactionCount: number;
   billsPaidCount: number;
 }
 
 /**
  * Pure arithmetic core — no DB access, unit-tested directly.
  *
- * cashIn deliberately uses each payout's `amount` (what Shopify actually
- * deposited), never `computedTotal` (the reconciled figure P&L uses). These
- * normally match, but diverge exactly when a payout is unexplained — and
- * cash that hit the bank doesn't wait for reconciliation to be "real," so
- * Cashflow shouldn't inherit P&L's residual-warning mechanics at all.
+ * cashIn is now capture-date-based, same as P&L (lib/dashboard/profit-and-loss.ts)
+ * — a deliberate choice: it recognizes money the moment Shopify captures it,
+ * not once it's later batched into a bank deposit. This means Cashflow can
+ * run ahead of what's actually sitting in the bank; Payouts is still the
+ * place to see real deposits.
  *
  * cashOut uses bills' paidOn (cash basis) — the counterpart to P&L's
- * incurredOn (accrual basis); this is what makes the two statements
- * genuinely different rather than redundant.
+ * incurredOn (accrual basis).
  */
 export function computeCashflow(
   month: string,
   currency: string | null,
-  monthPayouts: ReconciledPayout[],
+  monthEntries: LedgerEntry[],
   paidBillAmounts: MinorUnits[],
 ): CashflowStatement {
-  const cashIn = add(...monthPayouts.map((p) => p.payout.amount));
+  const cashIn = categorizeTransactions(monthEntries.map((entry) => entry.transaction)).netTotal;
   const cashOut = add(...paidBillAmounts);
   const netCashFlow = subtract(cashIn, cashOut);
 
@@ -42,7 +42,7 @@ export function computeCashflow(
     cashIn,
     cashOut,
     netCashFlow,
-    payoutCount: monthPayouts.length,
+    transactionCount: monthEntries.length,
     billsPaidCount: paidBillAmounts.length,
   };
 }
@@ -52,14 +52,16 @@ export async function buildCashflow(storeId: string, now = new Date()): Promise<
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const month = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`;
 
-  const [reconciledPayouts, paidBills] = await Promise.all([
-    loadReconciledPayouts(storeId),
+  const [ledger, paidBills] = await Promise.all([
+    loadTransactionLedger(storeId),
     prisma.bill.findMany({ where: { storeId, status: "paid", paidOn: { gte: monthStart, lt: monthEnd } } }),
   ]);
 
-  const monthPayouts = reconciledPayouts.filter((p) => p.payout.date >= monthStart && p.payout.date < monthEnd);
-  const currency = monthPayouts[0]?.payout.currency ?? null;
+  const monthEntries = ledger.filter(
+    (entry) => entry.transaction.processedAt >= monthStart && entry.transaction.processedAt < monthEnd,
+  );
+  const currency = monthEntries[0]?.transaction.currency ?? null;
   const paidBillAmounts = paidBills.map((bill) => minorUnits(bill.amount));
 
-  return computeCashflow(month, currency, monthPayouts, paidBillAmounts);
+  return computeCashflow(month, currency, monthEntries, paidBillAmounts);
 }
