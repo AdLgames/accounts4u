@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // `next dev` otherwise auto-appends a Next.js agent-rules block to this
+  // repo's own CLAUDE.md (its conventions doc, unrelated to Next.js
+  // itself) on every dev server start — surfaced as an unexpected diff
+  // during this session's local testing. Off since CLAUDE.md is
+  // deliberately hand-authored (see the file itself).
+  agentRules: false,
 };
 
 export default withSentryConfig(nextConfig, {

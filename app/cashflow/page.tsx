@@ -2,7 +2,8 @@ import { buildCashflowTrailing13Weeks, type CashflowWeek } from "@/lib/dashboard
 import type { ExpenseLine } from "@/lib/dashboard/profit-and-loss";
 import { add, formatDecimal, minorUnits, type MinorUnits } from "@/lib/money";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
-import { AppNav } from "../_components/app-nav";
+import { AppShell } from "../_components/app-shell";
+import { Card, CardLabel } from "../_components/card";
 import { CashflowChart } from "../_components/cashflow-chart";
 import { NotConnected } from "../_components/not-connected";
 import { RefreshStatus } from "../_components/refresh-status";
@@ -46,25 +47,29 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
   const cashOutByCategory = aggregateCategories(weeks, "cashOutByCategory");
 
   return (
-    <div className="flex min-h-full flex-col">
-      <AppNav shop={shop} current="/cashflow" />
-      <RefreshStatus status={refreshed} />
-      <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-        <h1 className="text-xl font-semibold">Cashflow</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Trailing 13 weeks, {weekLabel(weeks[0].weekStart)} – today
-        </p>
-
-        <div className="mt-6 flex flex-col gap-6">
-          <Stat label="Cash in (13 weeks)" value={`${currency} ${formatDecimal(totalCashIn)}`} />
+    <AppShell
+      shop={shop}
+      current="/cashflow"
+      title="Cashflow"
+      subtitle={`Trailing 13 weeks, ${weekLabel(weeks[0].weekStart)} – today`}
+      lastSyncAt={store.lastSyncAt}
+      banner={
+        <>
+          <RefreshStatus status={refreshed} />
+          <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
+        </>
+      }
+    >
+      <div className="mx-auto w-full max-w-4xl">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Stat label="Cash in (13 weeks)" value={`${currency} ${formatDecimal(totalCashIn)}`} accent />
           <Stat label="Cash out (13 weeks)" value={`${currency} ${formatDecimal(totalCashOut)}`} />
           <Stat label="Net cash flow (13 weeks)" value={`${currency} ${formatDecimal(totalNet)}`} />
         </div>
 
-        <section className="mt-10">
+        <section className="mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Cash in / cash out by week</h2>
+            <CardLabel>Cash in / cash out by week</CardLabel>
             <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
               <span className="flex items-center gap-1">
                 <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500 opacity-75" /> In
@@ -74,14 +79,14 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
               </span>
             </div>
           </div>
-          <div className="mt-3 overflow-x-auto">
+          <Card className="mt-3 overflow-x-auto px-5 py-5">
             <CashflowChart weeks={weeks} />
-          </div>
+          </Card>
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Week by week</h2>
-          <div className="mt-3 overflow-x-auto">
+          <CardLabel>Week by week</CardLabel>
+          <Card className="mt-3 overflow-x-auto px-5 py-4">
             <table className="w-full min-w-[480px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-black/10 text-left text-zinc-500 dark:border-white/10 dark:text-zinc-400">
@@ -91,10 +96,10 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
                   <th className="py-1 text-right font-medium">Net</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="font-mono">
                 {weeks.map((week) => (
-                  <tr key={week.weekStart} className="border-b border-black/5 dark:border-white/5">
-                    <td className="py-1.5 pr-2 whitespace-nowrap">{weekLabel(week.weekStart)}</td>
+                  <tr key={week.weekStart} className="border-b border-black/5 last:border-0 dark:border-white/5">
+                    <td className="py-1.5 pr-2 font-sans whitespace-nowrap">{weekLabel(week.weekStart)}</td>
                     <td className="py-1.5 pr-2 text-right">{formatDecimal(week.cashIn)}</td>
                     <td className="py-1.5 pr-2 text-right">{formatDecimal(week.cashOut)}</td>
                     <td className="py-1.5 text-right font-medium">{formatDecimal(week.netCashFlow)}</td>
@@ -102,12 +107,12 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </section>
 
-        <section className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2">
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Incoming, by category</h2>
+        <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Card className="px-5 py-4">
+            <CardLabel>Incoming, by category</CardLabel>
             {cashInByCategory.length === 0 ? (
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">No cash in over the last 13 weeks.</p>
             ) : (
@@ -115,16 +120,16 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
                 {cashInByCategory.map((line) => (
                   <div key={line.category} className="flex items-center justify-between">
                     <dt className="text-zinc-600 dark:text-zinc-400">{line.category}</dt>
-                    <dd>
+                    <dd className="font-mono">
                       {currency} {formatDecimal(line.amount)}
                     </dd>
                   </div>
                 ))}
               </dl>
             )}
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Outgoing, by category</h2>
+          </Card>
+          <Card className="px-5 py-4">
+            <CardLabel>Outgoing, by category</CardLabel>
             {cashOutByCategory.length === 0 ? (
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">No paid bills over the last 13 weeks.</p>
             ) : (
@@ -132,16 +137,16 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
                 {cashOutByCategory.map((line) => (
                   <div key={line.category} className="flex items-center justify-between">
                     <dt className="text-zinc-600 dark:text-zinc-400">{line.category}</dt>
-                    <dd>
+                    <dd className="font-mono">
                       {currency} {formatDecimal(line.amount)}
                     </dd>
                   </div>
                 ))}
               </dl>
             )}
-          </div>
+          </Card>
         </section>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

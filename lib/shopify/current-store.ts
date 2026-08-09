@@ -7,8 +7,9 @@ import { exchangeSessionToken } from "./session";
  * Resolves which Store a dashboard page request belongs to. Shopify only
  * appends a fresh id_token to the App URL on the *initial* embedded load
  * (see lib/shopify/session.ts) — internal navigation between our own
- * dashboard routes doesn't get a new one, so AppNav carries `shop` alone
- * forward on its links and this just looks the store up by domain on
+ * dashboard routes doesn't get a new one, so the sidebar nav (app/
+ * _components/sidebar.tsx) carries `shop` alone forward on its links and
+ * this just looks the store up by domain on
  * those subsequent requests, re-exchanging only when id_token is present.
  */
 export async function resolveCurrentStore(shop: string | undefined, idToken: string | undefined): Promise<Store | null> {

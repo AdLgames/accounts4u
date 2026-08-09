@@ -12,7 +12,7 @@ import { runSyncSweep } from "@/lib/shopify/sync";
 // matter how often the button is clicked.
 const COOLDOWN_MS = 2 * 60 * 1000;
 
-/** Merchant-triggered on-demand sync for their own store, from the "Refresh" button in AppNav. Same runSyncSweep the cron uses, just scoped to one store and reachable from the dashboard instead of Vercel Cron's CRON_SECRET. */
+/** Merchant-triggered on-demand sync for their own store, from the header's "Refresh" button (app/_components/app-shell.tsx). Same runSyncSweep the cron uses, just scoped to one store and reachable from the dashboard instead of Vercel Cron's CRON_SECRET. */
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const shop = String(formData.get("shop") ?? "");
