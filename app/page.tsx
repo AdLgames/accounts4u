@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { formatDecimal, minorUnits } from "@/lib/money";
 import type { MinorUnits } from "@/lib/money";
-import { buildProfitAndLoss } from "@/lib/dashboard/profit-and-loss";
+import { buildProfitAndLossTrend } from "@/lib/dashboard/profit-and-loss";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "./_components/app-nav";
 import { NotConnected } from "./_components/not-connected";
@@ -28,13 +29,15 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
   const shop = firstParam(params.shop);
   const idToken = firstParam(params.id_token);
   const refreshed = firstParam(params.refreshed);
+  const trendMonths = firstParam(params.months) === "12" ? 12 : 6;
 
   const store = await resolveCurrentStore(shop, idToken);
   if (!store || !shop) {
     return <NotConnected />;
   }
 
-  const statement = await buildProfitAndLoss(store.id);
+  const trend = await buildProfitAndLossTrend(store.id, trendMonths);
+  const statement = trend[trend.length - 1];
   const currency = statement.currency ?? "";
 
   return (
@@ -67,6 +70,9 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
 
         <dl className="mt-8 flex flex-col gap-2 text-sm">
           <StatementRow label="Revenue" value={statement.revenue} currency={currency} />
+          {statement.revenueByCategory.map((category) => (
+            <StatementRow key={category.category} label={category.category} value={category.amount} currency={currency} indent />
+          ))}
           {statement.refunds !== 0 && <StatementRow label="Refunds" value={minorUnits(-statement.refunds)} currency={currency} />}
           <StatementRow label="Net sales" value={statement.netSales} currency={currency} emphasis />
           <StatementRow label="Cost of goods sold" value={minorUnits(-statement.cogs)} currency={currency} />
@@ -86,6 +92,12 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
           <StatementRow label="Net profit" value={statement.netProfit} currency={currency} emphasis />
         </dl>
 
+        {statement.revenueByCategory.length === 0 && (
+          <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+            Set a revenue category per product in Inputs to break Revenue down by type here.
+          </p>
+        )}
+
         {statement.otherPaymentActivity !== 0 && (
           <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
             {money(currency, statement.otherPaymentActivity)} of other Shopify Payments activity this month (adjustments/reserves)
@@ -99,6 +111,50 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
             bank yet — see Payouts.
           </p>
         )}
+
+        <section className="mt-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Month by month</h2>
+            <div className="flex gap-3 text-xs">
+              <Link
+                href={`/?shop=${encodeURIComponent(shop)}&months=6`}
+                className={trendMonths === 6 ? "font-semibold underline" : "text-zinc-500 hover:underline dark:text-zinc-400"}
+              >
+                6mo
+              </Link>
+              <Link
+                href={`/?shop=${encodeURIComponent(shop)}&months=12`}
+                className={trendMonths === 12 ? "font-semibold underline" : "text-zinc-500 hover:underline dark:text-zinc-400"}
+              >
+                12mo
+              </Link>
+            </div>
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[480px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-black/10 text-left text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+                  <th className="py-1 pr-2 font-medium">Month</th>
+                  <th className="py-1 pr-2 text-right font-medium">Revenue</th>
+                  <th className="py-1 pr-2 text-right font-medium">COGS</th>
+                  <th className="py-1 pr-2 text-right font-medium">Gross profit</th>
+                  <th className="py-1 text-right font-medium">Net profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trend.map((month) => (
+                  <tr key={month.month} className="border-b border-black/5 dark:border-white/5">
+                    <td className="py-1.5 pr-2 whitespace-nowrap">{monthLabel(month.month)}</td>
+                    <td className="py-1.5 pr-2 text-right">{formatDecimal(month.revenue)}</td>
+                    <td className="py-1.5 pr-2 text-right">{formatDecimal(month.cogs)}</td>
+                    <td className="py-1.5 pr-2 text-right">{formatDecimal(month.grossProfit)}</td>
+                    <td className="py-1.5 text-right font-medium">{formatDecimal(month.netProfit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   );

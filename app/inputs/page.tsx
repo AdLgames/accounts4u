@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { daysLeftInTrial, isReadOnly } from "@/lib/billing/access";
 import { createBill, deleteBill, importBillsCsv, listBills, updateBill } from "@/lib/bills/db";
 import { BILL_CATEGORIES, isBillCategory, type BillInput, type BillStatus } from "@/lib/bills/types";
+import { REVENUE_CATEGORIES, isRevenueCategory } from "@/lib/dashboard/revenue-categories";
 import { formatDecimal, minorUnits, parseDecimal } from "@/lib/money";
 import { listProductsFromOrders } from "@/lib/shopify/products-from-orders";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
@@ -47,7 +48,7 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
     listProductsFromOrders(storeId),
     listBills(storeId),
   ]);
-  const costByProductId = new Map(productCosts.map((cost) => [cost.shopifyProductId, cost.costPerUnit]));
+  const costByProductId = new Map(productCosts.map((cost) => [cost.shopifyProductId, cost]));
 
   async function saveGeneralSettings(formData: FormData) {
     "use server";
@@ -65,11 +66,13 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
 
     const productId = String(formData.get("productId"));
     const cost = parseDecimal(String(formData.get("cost") || "0"));
+    const categoryRaw = String(formData.get("revenueCategory") ?? "");
+    const revenueCategory = isRevenueCategory(categoryRaw) ? categoryRaw : null;
 
     await prisma.productCost.upsert({
       where: { storeId_shopifyProductId: { storeId, shopifyProductId: productId } },
-      create: { storeId, shopifyProductId: productId, costPerUnit: cost },
-      update: { costPerUnit: cost },
+      create: { storeId, shopifyProductId: productId, costPerUnit: cost, revenueCategory },
+      update: { costPerUnit: cost, revenueCategory },
     });
 
     redirect(`/inputs?shop=${encodeURIComponent(shopParam)}&saved=1`);
@@ -190,7 +193,8 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
         <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Bills &amp; expenses</h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Feeds Operating Expenses on P&amp;L (by incurred date) and Cash Out on Cashflow (by paid date). Shopify&apos;s own
+            Feeds Operating Expenses on P&amp;L and Cash Out on Cashflow, both once a bill is marked paid (cash basis — the
+            default for most small businesses; unpaid bills still show as a liability on Balance Sheet). Shopify&apos;s own
             Bill Pay has no way for this app to read from it, so bills are entered here directly.
           </p>
 
@@ -268,9 +272,10 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
         </section>
 
         <section className="mt-10">
-          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Cost per product (COGS)</h2>
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Cost &amp; revenue category per product</h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Products seen in your recent orders. Set a cost so your true profit accounts for it.
+            Products seen in your recent orders. Set a cost so your true profit accounts for it, and a category to break
+            Revenue down by type on P&amp;L — leave it unset and that product just contributes to the flat Revenue line.
           </p>
           {products.length === 0 ? (
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -278,34 +283,46 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
             </p>
           ) : (
             <ul className="mt-3 flex flex-col divide-y divide-black/10 dark:divide-white/10">
-              {products.map((product) => (
-                <li key={product.productId} className="flex items-center justify-between gap-4 py-2">
-                  <span className="truncate text-sm">{product.title}</span>
-                  <form action={saveProductCost} className="flex items-center gap-2">
-                    <input type="hidden" name="productId" value={product.productId} />
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      name="cost"
-                      defaultValue={
-                        costByProductId.has(product.productId)
-                          ? formatDecimal(minorUnits(costByProductId.get(product.productId)!))
-                          : ""
-                      }
-                      placeholder="0.00"
-                      disabled={readOnly}
-                      className="w-24 rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
-                    />
-                    <button
-                      type="submit"
-                      disabled={readOnly}
-                      className="text-sm font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-200"
-                    >
-                      Save
-                    </button>
-                  </form>
-                </li>
-              ))}
+              {products.map((product) => {
+                const existing = costByProductId.get(product.productId);
+                return (
+                  <li key={product.productId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="truncate text-sm">{product.title}</span>
+                    <form action={saveProductCost} className="flex items-center gap-2">
+                      <input type="hidden" name="productId" value={product.productId} />
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="cost"
+                        defaultValue={existing ? formatDecimal(minorUnits(existing.costPerUnit)) : ""}
+                        placeholder="0.00"
+                        disabled={readOnly}
+                        className="w-20 rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
+                      />
+                      <select
+                        name="revenueCategory"
+                        defaultValue={existing?.revenueCategory ?? ""}
+                        disabled={readOnly}
+                        className="rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
+                      >
+                        <option value="">Uncategorized</option>
+                        {REVENUE_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={readOnly}
+                        className="text-sm font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-200"
+                      >
+                        Save
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
