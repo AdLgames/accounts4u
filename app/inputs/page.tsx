@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { daysLeftInTrial, isReadOnly } from "@/lib/billing/access";
 import { createBill, deleteBill, importBillsCsv, listBills, updateBill } from "@/lib/bills/db";
 import { BILL_CATEGORIES, isBillCategory, type BillInput, type BillStatus } from "@/lib/bills/types";
-import { REVENUE_CATEGORIES, isRevenueCategory } from "@/lib/dashboard/revenue-categories";
+import { loadShopifyProductTypes } from "@/lib/dashboard/product-lines";
 import { formatDecimal, minorUnits, parseDecimal } from "@/lib/money";
 import { listProductsFromOrders } from "@/lib/shopify/products-from-orders";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
@@ -43,10 +43,11 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
 
   const settings = await prisma.storeSettings.upsert({ where: { storeId }, create: { storeId }, update: {} });
 
-  const [productCosts, products, bills] = await Promise.all([
+  const [productCosts, products, bills, shopifyProductTypes] = await Promise.all([
     prisma.productCost.findMany({ where: { storeId } }),
     listProductsFromOrders(storeId),
     listBills(storeId),
+    loadShopifyProductTypes(storeId),
   ]);
   const costByProductId = new Map(productCosts.map((cost) => [cost.shopifyProductId, cost]));
 
@@ -66,8 +67,10 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
 
     const productId = String(formData.get("productId"));
     const cost = parseDecimal(String(formData.get("cost") || "0"));
-    const categoryRaw = String(formData.get("revenueCategory") ?? "");
-    const revenueCategory = isRevenueCategory(categoryRaw) ? categoryRaw : null;
+    // Freeform, not a fixed pick-list — mirrors Shopify's own product_type
+    // field. Empty means "no override", so P&L falls back to the Shopify
+    // type synced for this product (see product-lines.ts).
+    const revenueCategory = String(formData.get("revenueCategory") ?? "").trim() || null;
 
     await prisma.productCost.upsert({
       where: { storeId_shopifyProductId: { storeId, shopifyProductId: productId } },
@@ -274,8 +277,9 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
         <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Cost &amp; revenue category per product</h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Products seen in your recent orders. Set a cost so your true profit accounts for it, and a category to break
-            Revenue down by type on P&amp;L — leave it unset and that product just contributes to the flat Revenue line.
+            Products seen in your recent orders. Set a cost so your true profit accounts for it. Revenue category
+            defaults to the product type already set in Shopify, so you don&apos;t have to categorize twice — type
+            something here only to override it for P&amp;L.
           </p>
           {products.length === 0 ? (
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -285,6 +289,7 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
             <ul className="mt-3 flex flex-col divide-y divide-black/10 dark:divide-white/10">
               {products.map((product) => {
                 const existing = costByProductId.get(product.productId);
+                const shopifyType = shopifyProductTypes.get(product.productId) ?? null;
                 return (
                   <li key={product.productId} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span className="truncate text-sm">{product.title}</span>
@@ -299,19 +304,14 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
                         disabled={readOnly}
                         className="w-20 rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
                       />
-                      <select
+                      <input
+                        type="text"
                         name="revenueCategory"
                         defaultValue={existing?.revenueCategory ?? ""}
+                        placeholder={shopifyType ?? "Uncategorized"}
                         disabled={readOnly}
-                        className="rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
-                      >
-                        <option value="">Uncategorized</option>
-                        {REVENUE_CATEGORIES.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
+                        className="w-36 rounded border border-black/15 px-2 py-1 text-sm disabled:opacity-50 dark:border-white/20 dark:bg-black"
+                      />
                       <button
                         type="submit"
                         disabled={readOnly}

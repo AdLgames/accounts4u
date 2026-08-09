@@ -84,6 +84,34 @@ export async function syncTransactionsForPayouts(store: SyncableStore, payoutIds
 }
 
 /**
+ * Full catalog snapshot every run, not incremental -- products.json has no
+ * cheap "changed since X" query this app uses elsewhere, and product
+ * catalogs at this app's target customer scale are small. Written into
+ * raw_products so lib/dashboard/product-lines.ts can pull each product's
+ * own product_type as a revenue-category default, instead of the merchant
+ * having to categorize products again in this app that they've already
+ * categorized in Shopify.
+ */
+export async function syncProducts(store: SyncableStore): Promise<number> {
+  const url = new URL(`https://${store.shopDomain}/admin/api/${shopifyConfig.apiVersion}/products.json`);
+  url.searchParams.set("limit", "250");
+
+  let count = 0;
+  await fetchAllPages(url, store.accessToken, "products", async (items) => {
+    if (items.length === 0) return;
+    const result = await prisma.rawProduct.createMany({
+      data: items.map((item) => ({
+        storeId: store.id,
+        shopifyId: String(item.id),
+        payload: item as Prisma.InputJsonValue,
+      })),
+    });
+    count += result.count;
+  });
+  return count;
+}
+
+/**
  * Syncs balance transactions directly, independent of which payout (if any)
  * they've been bundled into -- this is what lets P&L/Cashflow recognize a
  * transaction the moment Shopify captures it, rather than waiting for it to
@@ -129,7 +157,7 @@ export async function syncBalanceTransactions(
   return { count, maxId: maxId === null ? null : String(maxId) };
 }
 
-type SyncCounts = { orders: number; payouts: number; transactions: number };
+type SyncCounts = { orders: number; payouts: number; transactions: number; products: number };
 
 async function runSync(store: RefreshableSyncableStore, since: Date): Promise<SyncCounts> {
   // Refreshes first if the stored access token is expired or close to it —
@@ -141,13 +169,14 @@ async function runSync(store: RefreshableSyncableStore, since: Date): Promise<Sy
   const orders = await syncOrders(freshStore, since);
   const { count: payouts, payoutIds } = await syncPayouts(freshStore, since);
   const payoutTransactions = await syncTransactionsForPayouts(freshStore, payoutIds);
+  const products = await syncProducts(freshStore);
 
   const { count: capturedTransactions, maxId } = await syncBalanceTransactions(freshStore, store.lastBalanceTransactionId);
   if (maxId && maxId !== store.lastBalanceTransactionId) {
     await prisma.store.update({ where: { id: store.id }, data: { lastBalanceTransactionId: maxId } });
   }
 
-  return { orders, payouts, transactions: payoutTransactions + capturedTransactions };
+  return { orders, payouts, transactions: payoutTransactions + capturedTransactions, products };
 }
 
 const BACKFILL_DAYS = 90;
