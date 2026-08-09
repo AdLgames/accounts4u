@@ -5,7 +5,10 @@ import { fetchAllPages } from "./rest";
 import { getValidAccessToken } from "./token-refresh";
 
 type SyncableStore = Pick<Store, "id" | "shopDomain" | "accessToken">;
-type RefreshableSyncableStore = Pick<Store, "id" | "shopDomain" | "accessToken" | "refreshToken" | "accessTokenExpiresAt">;
+type RefreshableSyncableStore = Pick<
+  Store,
+  "id" | "shopDomain" | "accessToken" | "refreshToken" | "accessTokenExpiresAt" | "lastBalanceTransactionId"
+>;
 
 // REST (not GraphQL) is used here deliberately: it returns orders/payouts in
 // the same shape Shopify's webhooks send, so raw_orders/raw_payouts stay
@@ -80,6 +83,52 @@ export async function syncTransactionsForPayouts(store: SyncableStore, payoutIds
   return count;
 }
 
+/**
+ * Syncs balance transactions directly, independent of which payout (if any)
+ * they've been bundled into -- this is what lets P&L/Cashflow recognize a
+ * transaction the moment Shopify captures it, rather than waiting for it to
+ * show up in syncTransactionsForPayouts via a completed payout. The
+ * shopify_payments/balance/transactions.json endpoint has no date-range
+ * filter (confirmed: payout_id, since_id, test are the only query params),
+ * so this pages forward from the last transaction id seen (Store.
+ * lastBalanceTransactionId) instead of a date window -- a fresh store with
+ * no watermark yet pages its entire lifetime history on the first run.
+ *
+ * Writes to the same raw_transactions table syncTransactionsForPayouts
+ * already writes to -- it's the same Shopify resource either way, just
+ * reached without the payout_id filter. Both sync paths currently coexist
+ * (see PLAN.md); once this is proven live, syncTransactionsForPayouts
+ * becomes redundant and can be removed as a follow-up.
+ */
+export async function syncBalanceTransactions(
+  store: SyncableStore,
+  sinceId?: string | null,
+): Promise<{ count: number; maxId: string | null }> {
+  const url = new URL(`https://${store.shopDomain}/admin/api/${shopifyConfig.apiVersion}/shopify_payments/balance/transactions.json`);
+  url.searchParams.set("limit", "250");
+  if (sinceId) url.searchParams.set("since_id", sinceId);
+
+  let count = 0;
+  let maxId: bigint | null = sinceId ? BigInt(sinceId) : null;
+  await fetchAllPages(url, store.accessToken, "transactions", async (items) => {
+    if (items.length === 0) return;
+    const result = await prisma.rawTransaction.createMany({
+      data: items.map((item) => ({
+        storeId: store.id,
+        shopifyId: String(item.id),
+        payload: item as Prisma.InputJsonValue,
+      })),
+    });
+    count += result.count;
+    for (const item of items) {
+      const id = BigInt(String(item.id));
+      if (maxId === null || id > maxId) maxId = id;
+    }
+  });
+
+  return { count, maxId: maxId === null ? null : String(maxId) };
+}
+
 type SyncCounts = { orders: number; payouts: number; transactions: number };
 
 async function runSync(store: RefreshableSyncableStore, since: Date): Promise<SyncCounts> {
@@ -91,8 +140,14 @@ async function runSync(store: RefreshableSyncableStore, since: Date): Promise<Sy
 
   const orders = await syncOrders(freshStore, since);
   const { count: payouts, payoutIds } = await syncPayouts(freshStore, since);
-  const transactions = await syncTransactionsForPayouts(freshStore, payoutIds);
-  return { orders, payouts, transactions };
+  const payoutTransactions = await syncTransactionsForPayouts(freshStore, payoutIds);
+
+  const { count: capturedTransactions, maxId } = await syncBalanceTransactions(freshStore, store.lastBalanceTransactionId);
+  if (maxId && maxId !== store.lastBalanceTransactionId) {
+    await prisma.store.update({ where: { id: store.id }, data: { lastBalanceTransactionId: maxId } });
+  }
+
+  return { orders, payouts, transactions: payoutTransactions + capturedTransactions };
 }
 
 const BACKFILL_DAYS = 90;

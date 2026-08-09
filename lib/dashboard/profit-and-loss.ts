@@ -1,7 +1,8 @@
+import { categorizeTransactions } from "../recon/categorize-transactions";
 import { prisma } from "../db";
 import { add, minorUnits, subtract, type MinorUnits } from "../money";
 import { computeCogs } from "./cogs";
-import { loadReconciledPayouts, type ReconciledPayout } from "./payout-ledger";
+import { loadTransactionLedger, type LedgerEntry } from "./transaction-ledger";
 
 export interface ExpenseLine {
   category: string;
@@ -30,55 +31,38 @@ export interface ProfitAndLossStatement {
   adjustmentsAndReserves: MinorUnits;
 
   netProfit: MinorUnits;
-  /** % of net cash from payouts this month — an estimate, not tax advice, same framing as PLAN.md's original tax set-aside. */
+  /** % of net cash from transactions this month — an estimate, not tax advice, same framing as PLAN.md's original tax set-aside. */
   taxSetAside: MinorUnits;
 
-  payoutCount: number;
-  unexplainedPayoutCount: number;
-  /** Sum of |residual| across unexplained payouts this month — surfaced as a standalone warning, never netted into netProfit. */
-  unexplainedResidual: MinorUnits;
+  transactionCount: number;
+  /** Sum of net for this month's transactions not yet bundled into a payout — informational, not a warning: P&L now recognizes revenue at capture, which can run ahead of what's actually reached the bank. */
+  pendingCashAmount: MinorUnits;
 }
 
 /**
  * Pure arithmetic core — no DB access, unit-tested directly. netProfit is
- * always derived from each payout's reconciled `computedTotal` (never a
- * hand-assembled revenue-minus-deductions formula), so an unexplained
- * payout's residual can never silently vanish into the bottom line — see
- * lib/recon/explain-payout.ts's own comment on why. The category totals
- * (revenue, refunds, fees, chargebacks, adjustmentsAndReserves) are
- * display-only line items, same caveat as PayoutBreakdown's fields.
+ * always derived from categorizeTransactions' netTotal (sum of each
+ * transaction's `net`), never a hand-assembled revenue-minus-deductions
+ * formula — same rule lib/recon/explain-payout.ts enforces at the payout
+ * level, applied here to a plain calendar-month grouping instead. There is
+ * no "unexplained residual" concept at this level (unlike a payout, a month
+ * of transactions has no external deposit to check against) — see
+ * pendingCashAmount instead, which is informational, not a warning.
  */
 export function computeProfitAndLoss(
   month: string,
   currency: string | null,
-  monthPayouts: ReconciledPayout[],
+  monthEntries: LedgerEntry[],
   expenses: ExpenseLine[],
   cogs: MinorUnits,
   taxSetAsidePercent: number,
 ): ProfitAndLossStatement {
-  let revenue = minorUnits(0);
-  let refunds = minorUnits(0);
-  let fees = minorUnits(0);
-  let chargebacks = minorUnits(0);
-  let adjustmentsAndReserves = minorUnits(0);
-  let netTotal = minorUnits(0);
-  let unexplainedPayoutCount = 0;
-  let unexplainedResidual = minorUnits(0);
+  const totals = categorizeTransactions(monthEntries.map((entry) => entry.transaction));
+  const pendingCashAmount = categorizeTransactions(
+    monthEntries.filter((entry) => entry.payoutId === null).map((entry) => entry.transaction),
+  ).netTotal;
 
-  for (const { breakdown } of monthPayouts) {
-    revenue = add(revenue, breakdown.grossSales);
-    refunds = add(refunds, breakdown.refunds);
-    fees = add(fees, breakdown.fees);
-    chargebacks = add(chargebacks, breakdown.chargebacks);
-    adjustmentsAndReserves = add(adjustmentsAndReserves, breakdown.adjustments, breakdown.reserves, breakdown.other);
-    netTotal = add(netTotal, breakdown.computedTotal);
-    if (!breakdown.isExplained) {
-      unexplainedPayoutCount++;
-      unexplainedResidual = add(unexplainedResidual, minorUnits(Math.abs(breakdown.residual)));
-    }
-  }
-
-  const netSales = subtract(revenue, refunds);
+  const netSales = subtract(totals.grossSales, totals.refunds);
   const grossProfit = subtract(netSales, cogs);
 
   const expensesByCategory = new Map<string, MinorUnits>();
@@ -90,60 +74,61 @@ export function computeProfitAndLoss(
     .sort((a, b) => b.amount - a.amount);
   const operatingExpensesTotal = add(...operatingExpenses.map((e) => e.amount));
 
-  const netProfit = subtract(netTotal, add(cogs, operatingExpensesTotal));
-  const taxSetAside = minorUnits(Math.round((netTotal * taxSetAsidePercent) / 100));
+  const netProfit = subtract(totals.netTotal, add(cogs, operatingExpensesTotal));
+  const taxSetAside = minorUnits(Math.round((totals.netTotal * taxSetAsidePercent) / 100));
+  const adjustmentsAndReserves = add(totals.adjustments, totals.reserves, totals.other);
 
   return {
     month,
     currency,
-    revenue,
-    refunds,
+    revenue: totals.grossSales,
+    refunds: totals.refunds,
     netSales,
     cogs,
     grossProfit,
     operatingExpenses,
     operatingExpensesTotal,
-    fees,
-    chargebacks,
+    fees: totals.fees,
+    chargebacks: totals.chargebacks,
     adjustmentsAndReserves,
     netProfit,
     taxSetAside,
-    payoutCount: monthPayouts.length,
-    unexplainedPayoutCount,
-    unexplainedResidual,
+    transactionCount: monthEntries.length,
+    pendingCashAmount,
   };
 }
 
 /**
- * "This month" is defined by payout date, not order date — orders placed
- * this month might not actually be paid out until next month, and fees/
- * refunds only exist in payout data, not order data (same reasoning the old
- * Overview screen used). Operating expenses use a Bill's incurredOn (accrual
- * basis) — see cashflow.ts for the paidOn (cash basis) counterpart.
+ * "This month" is now defined by when Shopify captured the customer's
+ * payment (each transaction's own processedAt), not by payout date — a
+ * merchant sees revenue the moment it's earned, not weeks later once
+ * Shopify batches it into a bank deposit. Operating expenses still use a
+ * Bill's incurredOn (accrual basis) — see cashflow.ts for the paidOn (cash
+ * basis) counterpart.
  */
 export async function buildProfitAndLoss(storeId: string, now = new Date()): Promise<ProfitAndLossStatement> {
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const month = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`;
 
-  const [settings, reconciledPayouts] = await Promise.all([
+  const [settings, ledger] = await Promise.all([
     prisma.storeSettings.upsert({ where: { storeId }, create: { storeId }, update: {} }),
-    loadReconciledPayouts(storeId),
+    loadTransactionLedger(storeId),
   ]);
 
-  const monthPayouts = reconciledPayouts.filter((p) => p.payout.date >= monthStart && p.payout.date < monthEnd);
-  const currency = monthPayouts[0]?.payout.currency ?? null;
+  const monthEntries = ledger.filter(
+    (entry) => entry.transaction.processedAt >= monthStart && entry.transaction.processedAt < monthEnd,
+  );
+  const currency = monthEntries[0]?.transaction.currency ?? null;
 
   const orderIdsThisMonth = new Set<string>();
-  for (const { transactions } of monthPayouts) {
-    for (const txn of transactions) {
-      if (txn.sourceOrderId) orderIdsThisMonth.add(txn.sourceOrderId);
-    }
+  for (const { transaction } of monthEntries) {
+    if (transaction.sourceOrderId) orderIdsThisMonth.add(transaction.sourceOrderId);
   }
   const cogs = await computeCogs(storeId, orderIdsThisMonth);
 
   const bills = await prisma.bill.findMany({ where: { storeId, incurredOn: { gte: monthStart, lt: monthEnd } } });
   const expenses: ExpenseLine[] = bills.map((bill) => ({ category: bill.category, amount: minorUnits(bill.amount) }));
 
-  return computeProfitAndLoss(month, currency, monthPayouts, expenses, cogs, settings.taxSetAsidePercent);
+  return computeProfitAndLoss(month, currency, monthEntries, expenses, cogs, settings.taxSetAsidePercent);
 }
