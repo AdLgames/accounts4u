@@ -45,7 +45,7 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
           <Stat
             label="Cash in"
             value={`${currency} ${formatDecimal(statement.cashIn)}`}
-            detail={`${statement.transactionCount} transaction(s) captured this month.`}
+            detail={`${statement.saleCount} order(s) this month.`}
           />
           <Stat
             label="Cash out"

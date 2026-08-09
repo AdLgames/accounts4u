@@ -1,7 +1,7 @@
-import { categorizeTransactions } from "../recon/categorize-transactions";
+import { summarizeOrderEvents, type OrderEvent } from "../recon/order-financials";
 import { prisma } from "../db";
 import { add, minorUnits, subtract, type MinorUnits } from "../money";
-import { loadTransactionLedger, type LedgerEntry } from "./transaction-ledger";
+import { loadOrderLedger } from "./order-ledger";
 
 export interface CashflowStatement {
   /** "YYYY-MM", UTC. */
@@ -10,39 +10,37 @@ export interface CashflowStatement {
   cashIn: MinorUnits;
   cashOut: MinorUnits;
   netCashFlow: MinorUnits;
-  transactionCount: number;
+  saleCount: number;
   billsPaidCount: number;
 }
 
 /**
  * Pure arithmetic core — no DB access, unit-tested directly.
  *
- * cashIn is now capture-date-based, same as P&L (lib/dashboard/profit-and-loss.ts)
- * — a deliberate choice: it recognizes money the moment Shopify captures it,
- * not once it's later batched into a bank deposit. This means Cashflow can
- * run ahead of what's actually sitting in the bank; Payouts is still the
- * place to see real deposits.
+ * cashIn comes from order totals (same gateway-agnostic source as P&L's
+ * revenue) rather than Shopify Payments' balance-transaction ledger, which
+ * only exists for stores with Shopify Payments activated. This is a
+ * deliberate simplification: it doesn't net out payment processing fees
+ * (unlike Shopify Payments deposits, a Stripe/PayPal/cash sale has no
+ * fee data available via Shopify's API at all), so cashIn is closer to
+ * "money that changed hands" than "money that landed in the bank" — the
+ * Payouts tab is still the place to see real Shopify Payments deposits.
  *
  * cashOut uses bills' paidOn (cash basis) — the counterpart to P&L's
  * incurredOn (accrual basis).
  */
-export function computeCashflow(
-  month: string,
-  currency: string | null,
-  monthEntries: LedgerEntry[],
-  paidBillAmounts: MinorUnits[],
-): CashflowStatement {
-  const cashIn = categorizeTransactions(monthEntries.map((entry) => entry.transaction)).netTotal;
+export function computeCashflow(month: string, currency: string | null, monthOrderEvents: OrderEvent[], paidBillAmounts: MinorUnits[]): CashflowStatement {
+  const orderTotals = summarizeOrderEvents(monthOrderEvents);
   const cashOut = add(...paidBillAmounts);
-  const netCashFlow = subtract(cashIn, cashOut);
+  const netCashFlow = subtract(orderTotals.netSales, cashOut);
 
   return {
     month,
     currency,
-    cashIn,
+    cashIn: orderTotals.netSales,
     cashOut,
     netCashFlow,
-    transactionCount: monthEntries.length,
+    saleCount: orderTotals.saleCount,
     billsPaidCount: paidBillAmounts.length,
   };
 }
@@ -52,16 +50,14 @@ export async function buildCashflow(storeId: string, now = new Date()): Promise<
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const month = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`;
 
-  const [ledger, paidBills] = await Promise.all([
-    loadTransactionLedger(storeId),
+  const [orderLedger, paidBills] = await Promise.all([
+    loadOrderLedger(storeId),
     prisma.bill.findMany({ where: { storeId, status: "paid", paidOn: { gte: monthStart, lt: monthEnd } } }),
   ]);
 
-  const monthEntries = ledger.filter(
-    (entry) => entry.transaction.processedAt >= monthStart && entry.transaction.processedAt < monthEnd,
-  );
-  const currency = monthEntries[0]?.transaction.currency ?? null;
+  const monthOrderEvents = orderLedger.filter((event) => event.processedAt >= monthStart && event.processedAt < monthEnd);
+  const currency = monthOrderEvents[0]?.currency ?? null;
   const paidBillAmounts = paidBills.map((bill) => minorUnits(bill.amount));
 
-  return computeCashflow(month, currency, monthEntries, paidBillAmounts);
+  return computeCashflow(month, currency, monthOrderEvents, paidBillAmounts);
 }
