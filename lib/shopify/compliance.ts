@@ -5,10 +5,11 @@ const REDACTED = "[redacted]";
 
 /**
  * Deletes every row of data associated with a shop, in dependency order.
- * The raw data, settings, and product cost tables use ON DELETE RESTRICT
- * rather than CASCADE deliberately (a plain DB cascade felt too easy to
- * trigger by accident for data this significant) — this handler is the one
- * place meant to actually do it. Shopify sends this ~48 hours after uninstall.
+ * The raw data, settings, product cost, and bill tables use ON DELETE
+ * RESTRICT rather than CASCADE deliberately (a plain DB cascade felt too
+ * easy to trigger by accident for data this significant) — this handler is
+ * the one place meant to actually do it. Shopify sends this ~48 hours after
+ * uninstall.
  */
 export async function handleShopRedact(shopDomain: string, payload: Record<string, unknown>): Promise<void> {
   await prisma.complianceRequest.create({
@@ -23,6 +24,7 @@ export async function handleShopRedact(shopDomain: string, payload: Record<strin
     prisma.rawTransaction.deleteMany({ where: { storeId: store.id } }),
     prisma.rawPayout.deleteMany({ where: { storeId: store.id } }),
     prisma.productCost.deleteMany({ where: { storeId: store.id } }),
+    prisma.bill.deleteMany({ where: { storeId: store.id } }),
     prisma.storeSettings.deleteMany({ where: { storeId: store.id } }),
     prisma.store.delete({ where: { id: store.id } }),
   ]);
