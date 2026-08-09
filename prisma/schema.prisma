@@ -138,6 +138,8 @@ model ProductCost {
   shopifyProductId String
   /** Minor units, cost per single unit of this product. */
   costPerUnit Int
+  /** Validated against REVENUE_CATEGORIES (lib/dashboard/revenue-categories.ts) at the app layer, not a DB enum -- same pattern as Bill.category. Null until the merchant sets one; P&L falls back to a single flat Revenue line when nothing's categorized. */
+  revenueCategory String?
 
   updatedAt DateTime @updatedAt
 

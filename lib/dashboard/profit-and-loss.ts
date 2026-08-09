@@ -2,7 +2,7 @@ import { categorizeTransactions } from "../recon/categorize-transactions";
 import { summarizeOrderEvents, type OrderEvent } from "../recon/order-financials";
 import { prisma } from "../db";
 import { add, minorUnits, subtract, type MinorUnits } from "../money";
-import { computeCogs } from "./cogs";
+import { computeProductLines, type ProductLine } from "./product-lines";
 import { loadOrderLedger } from "./order-ledger";
 import { loadTransactionLedger, type LedgerEntry } from "./transaction-ledger";
 
@@ -24,8 +24,12 @@ export interface ProfitAndLossStatement {
 
   cogs: MinorUnits;
   grossProfit: MinorUnits;
+  /** Revenue grouped by each product's revenueCategory (set in Inputs) — empty when nothing's categorized yet, in which case the page just shows the flat Revenue line above. */
+  revenueByCategory: ExpenseLine[];
+  /** Per-product detail: revenue is from order line items (pre-discount/pre-refund) so it won't exactly match the top-line Revenue figure above (which is the actual payment amount) — expected, not a bug. */
+  productLines: ProductLine[];
 
-  /** Bills grouped by category, incurredOn falling in this month — accrual basis. */
+  /** Bills grouped by category, status=paid with paidOn falling in this month — cash basis by default (most small businesses account for expenses when actually paid, not when billed). */
   operatingExpenses: ExpenseLine[];
   operatingExpensesTotal: MinorUnits;
 
@@ -62,7 +66,7 @@ export function computeProfitAndLoss(
   monthOrderEvents: OrderEvent[],
   monthPaymentEntries: LedgerEntry[],
   expenses: ExpenseLine[],
-  cogs: MinorUnits,
+  productLines: ProductLine[],
   taxSetAsidePercent: number,
 ): ProfitAndLossStatement {
   const orderTotals = summarizeOrderEvents(monthOrderEvents);
@@ -72,7 +76,17 @@ export function computeProfitAndLoss(
   ).netTotal;
 
   const netSales = orderTotals.netSales;
+  const cogs = add(...productLines.map((line) => line.cogs));
   const grossProfit = subtract(netSales, cogs);
+
+  const revenueByCategoryMap = new Map<string, MinorUnits>();
+  for (const line of productLines) {
+    if (!line.category) continue;
+    revenueByCategoryMap.set(line.category, add(revenueByCategoryMap.get(line.category) ?? minorUnits(0), line.revenue));
+  }
+  const revenueByCategory = [...revenueByCategoryMap.entries()]
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount);
 
   const expensesByCategory = new Map<string, MinorUnits>();
   for (const expense of expenses) {
@@ -95,6 +109,8 @@ export function computeProfitAndLoss(
     netSales,
     cogs,
     grossProfit,
+    revenueByCategory,
+    productLines,
     operatingExpenses,
     operatingExpensesTotal,
     fees: paymentTotals.fees,
@@ -107,34 +123,59 @@ export function computeProfitAndLoss(
   };
 }
 
-/**
- * "This month" is defined by when the order (or its refund) was processed
- * — the same date every merchant sees on the order itself, regardless of
- * payment gateway. Operating expenses still use a Bill's incurredOn
- * (accrual basis) — see cashflow.ts for the paidOn (cash basis) counterpart.
- */
-export async function buildProfitAndLoss(storeId: string, now = new Date()): Promise<ProfitAndLossStatement> {
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+function monthWindow(now: Date, monthsAgo: number): { monthStart: Date; monthEnd: Date; month: string } {
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo + 1, 1));
   const month = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`;
+  return { monthStart, monthEnd, month };
+}
 
+/**
+ * Loads the store's order/payment history once, then slices it per month —
+ * not "call buildProfitAndLoss N times", which would reload the same full
+ * history N times for no benefit. Returned oldest-first, ending with the
+ * current month.
+ */
+export async function buildProfitAndLossTrend(storeId: string, months: number, now = new Date()): Promise<ProfitAndLossStatement[]> {
   const [settings, orderLedger, paymentLedger] = await Promise.all([
     prisma.storeSettings.upsert({ where: { storeId }, create: { storeId }, update: {} }),
     loadOrderLedger(storeId),
     loadTransactionLedger(storeId),
   ]);
 
-  const monthOrderEvents = orderLedger.filter((event) => event.processedAt >= monthStart && event.processedAt < monthEnd);
-  const monthPaymentEntries = paymentLedger.filter(
-    (entry) => entry.transaction.processedAt >= monthStart && entry.transaction.processedAt < monthEnd,
-  );
-  const currency = monthOrderEvents[0]?.currency ?? monthPaymentEntries[0]?.transaction.currency ?? null;
+  const statements: ProfitAndLossStatement[] = [];
+  for (let monthsAgo = months - 1; monthsAgo >= 0; monthsAgo--) {
+    const { monthStart, monthEnd, month } = monthWindow(now, monthsAgo);
 
-  const orderIdsThisMonth = new Set(monthOrderEvents.map((event) => event.orderId));
-  const cogs = await computeCogs(storeId, orderIdsThisMonth);
+    const monthOrderEvents = orderLedger.filter((event) => event.processedAt >= monthStart && event.processedAt < monthEnd);
+    const monthPaymentEntries = paymentLedger.filter(
+      (entry) => entry.transaction.processedAt >= monthStart && entry.transaction.processedAt < monthEnd,
+    );
+    const currency = monthOrderEvents[0]?.currency ?? monthPaymentEntries[0]?.transaction.currency ?? null;
 
-  const bills = await prisma.bill.findMany({ where: { storeId, incurredOn: { gte: monthStart, lt: monthEnd } } });
-  const expenses: ExpenseLine[] = bills.map((bill) => ({ category: bill.category, amount: minorUnits(bill.amount) }));
+    const orderIdsThisMonth = new Set(monthOrderEvents.map((event) => event.orderId));
+    const productLines = await computeProductLines(storeId, orderIdsThisMonth);
 
-  return computeProfitAndLoss(month, currency, monthOrderEvents, monthPaymentEntries, expenses, cogs, settings.taxSetAsidePercent);
+    // Cash basis by default: an expense counts in the month it was actually
+    // paid, not the month it was incurred/billed -- matches how most small
+    // businesses (e.g. HMRC's Cash Basis scheme) do their own books.
+    const bills = await prisma.bill.findMany({ where: { storeId, status: "paid", paidOn: { gte: monthStart, lt: monthEnd } } });
+    const expenses: ExpenseLine[] = bills.map((bill) => ({ category: bill.category, amount: minorUnits(bill.amount) }));
+
+    statements.push(
+      computeProfitAndLoss(month, currency, monthOrderEvents, monthPaymentEntries, expenses, productLines, settings.taxSetAsidePercent),
+    );
+  }
+
+  return statements;
+}
+
+/**
+ * "This month" is defined by when the order (or its refund) was processed
+ * — the same date every merchant sees on the order itself, regardless of
+ * payment gateway.
+ */
+export async function buildProfitAndLoss(storeId: string, now = new Date()): Promise<ProfitAndLossStatement> {
+  const [statement] = await buildProfitAndLossTrend(storeId, 1, now);
+  return statement;
 }
