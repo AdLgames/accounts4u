@@ -62,6 +62,7 @@ model Store {
   rawOrders       RawOrder[]
   rawTransactions RawTransaction[]
   rawPayouts      RawPayout[]
+  rawProducts     RawProduct[]
   settings        StoreSettings?
   productCosts    ProductCost[]
   bills           Bill[]
@@ -85,6 +86,24 @@ model RawOrder {
 
   @@index([storeId, shopifyId])
   @@map("raw_orders")
+}
+
+// Shopify's own product catalog -- separate from the product list derived
+// from order line_items (lib/shopify/products-from-orders.ts), which only
+// ever shows products that have actually sold. This is used to pull each
+// product's own product_type (the free-text category the merchant already
+// set in Shopify) so revenue categorization doesn't require re-doing that
+// work in this app -- see lib/dashboard/product-lines.ts.
+model RawProduct {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  shopifyId  String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([storeId, shopifyId])
+  @@map("raw_products")
 }
 
 model RawTransaction {
@@ -138,7 +157,7 @@ model ProductCost {
   shopifyProductId String
   /** Minor units, cost per single unit of this product. */
   costPerUnit Int
-  /** Validated against REVENUE_CATEGORIES (lib/dashboard/revenue-categories.ts) at the app layer, not a DB enum -- same pattern as Bill.category. Null until the merchant sets one; P&L falls back to a single flat Revenue line when nothing's categorized. */
+  /** Explicit override only -- null unless the merchant deliberately sets one in Inputs. When null, P&L falls back to this product's own Shopify product_type (RawProduct, synced separately) so categorization doesn't require redoing work already done in Shopify; falls back further to a flat, uncategorized Revenue line if neither exists. Freeform (not a fixed pick-list) since it mirrors Shopify's own freeform product_type field. */
   revenueCategory String?
 
   updatedAt DateTime @updatedAt

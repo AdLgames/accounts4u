@@ -17,7 +17,7 @@ export function TrialBanner({
 
   if (readOnly) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/50 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-300">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/50 bg-amber-50 px-6 py-2.5 text-sm text-amber-900 md:px-10 dark:bg-amber-950 dark:text-amber-300">
         <span>Your trial has ended — you can still view everything, but Inputs changes are paused.</span>
         <a
           href={`/api/stripe/checkout?shop=${encodeURIComponent(shop)}`}
@@ -31,7 +31,7 @@ export function TrialBanner({
 
   if (daysLeft <= 3) {
     return (
-      <div className="border-b border-black/10 bg-zinc-50 px-4 py-2 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400">
+      <div className="border-b border-black/10 bg-zinc-50 px-6 py-2.5 text-sm text-zinc-600 md:px-10 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400">
         {daysLeft === 0 ? "Trial ends today" : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your trial`} —{" "}
         <a href={`/api/stripe/checkout?shop=${encodeURIComponent(shop)}`} className="underline">
           subscribe

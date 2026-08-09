@@ -3,7 +3,8 @@ import { formatDecimal, minorUnits } from "@/lib/money";
 import type { MinorUnits } from "@/lib/money";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { explainPayoutById } from "@/lib/dashboard/payouts";
-import { AppNav } from "../../_components/app-nav";
+import { AppShell } from "../../_components/app-shell";
+import { Card } from "../../_components/card";
 import { NotConnected } from "../../_components/not-connected";
 import { TrialBanner } from "../../_components/trial-banner";
 import { firstParam } from "../../_lib/search-params";
@@ -26,10 +27,15 @@ export default async function PayoutDetailPage({ params, searchParams }: PagePro
   const breakdown = await explainPayoutById(store.id, payoutId);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <AppNav shop={shop} current="/payouts" />
-      <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <AppShell
+      shop={shop}
+      current="/payouts"
+      title={breakdown ? `${money(breakdown.currency, breakdown.deposited)} arrived` : "Payout"}
+      subtitle={breakdown ? undefined : "Payout not found"}
+      lastSyncAt={store.lastSyncAt}
+      banner={<TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />}
+    >
+      <div className="mx-auto w-full max-w-4xl">
         <Link href={`/payouts?shop=${encodeURIComponent(shop)}`} className="text-sm text-zinc-500 hover:underline">
           ← Payouts
         </Link>
@@ -37,10 +43,8 @@ export default async function PayoutDetailPage({ params, searchParams }: PagePro
         {!breakdown ? (
           <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Payout not found.</p>
         ) : (
-          <>
-            <h1 className="mt-2 text-2xl font-semibold">{money(breakdown.currency, breakdown.deposited)} arrived</h1>
-
-            <dl className="mt-4 flex flex-col gap-2 text-sm">
+          <Card className="mt-4 px-5 py-4">
+            <dl className="flex flex-col text-sm">
               <Row label="Sales" value={breakdown.grossSales} currency={breakdown.currency} sign="+" />
               {breakdown.refunds !== 0 && <Row label="Refunds" value={breakdown.refunds} currency={breakdown.currency} sign="" />}
               <Row
@@ -73,30 +77,30 @@ export default async function PayoutDetailPage({ params, searchParams }: PagePro
               )}
               {breakdown.other !== 0 && <Row label="Other" value={breakdown.other} currency={breakdown.currency} sign="" />}
             </dl>
-
-            {!breakdown.isExplained && (
-              <p className="mt-4 rounded border border-amber-400/50 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                This payout doesn&apos;t fully add up yet — {money(breakdown.currency, breakdown.residual)} unexplained. Nothing
-                was hidden or estimated to make the numbers match.
-              </p>
-            )}
-
-            {breakdown.multiCurrencyWarning && (
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Heads up: this payout includes more than one currency, which isn&apos;t fully supported yet.
-              </p>
-            )}
-
-            {breakdown.platformRemittedTaxOrderIds.length > 0 && (
-              <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-                {breakdown.platformRemittedTaxOrderIds.length} order(s) in this payout had tax remitted by Shopify (marketplace
-                orders) rather than you.
-              </p>
-            )}
-          </>
+          </Card>
         )}
-      </main>
-    </div>
+
+        {breakdown && !breakdown.isExplained && (
+          <p className="mt-4 rounded-2xl border border-amber-400/50 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            This payout doesn&apos;t fully add up yet — {money(breakdown.currency, breakdown.residual)} unexplained. Nothing
+            was hidden or estimated to make the numbers match.
+          </p>
+        )}
+
+        {breakdown?.multiCurrencyWarning && (
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Heads up: this payout includes more than one currency, which isn&apos;t fully supported yet.
+          </p>
+        )}
+
+        {breakdown && breakdown.platformRemittedTaxOrderIds.length > 0 && (
+          <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+            {breakdown.platformRemittedTaxOrderIds.length} order(s) in this payout had tax remitted by Shopify (marketplace
+            orders) rather than you.
+          </p>
+        )}
+      </div>
+    </AppShell>
   );
 }
 
@@ -114,9 +118,9 @@ function Row({
   title?: string;
 }) {
   return (
-    <div className="flex items-center justify-between" title={title}>
+    <div className="flex items-center justify-between py-0.5" title={title}>
       <dt className="text-zinc-600 dark:text-zinc-400">{label}</dt>
-      <dd>
+      <dd className="font-mono">
         {sign} {money(currency, minorUnits(Math.abs(value)))}
       </dd>
     </div>

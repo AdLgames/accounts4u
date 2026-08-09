@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeCashflow } from "../../lib/dashboard/cashflow";
+import { computeCashflowWeek } from "../../lib/dashboard/cashflow";
 import { minorUnits } from "../../lib/money";
+import type { ExpenseLine } from "../../lib/dashboard/profit-and-loss";
 import type { OrderEvent } from "../../lib/recon/order-financials";
 
 function sale(orderId: string, amount: number): OrderEvent {
@@ -11,29 +12,44 @@ function refund(orderId: string, amount: number): OrderEvent {
   return { type: "refund", orderId, amount: minorUnits(amount), currency: "GBP", processedAt: new Date("2026-07-16"), gateway: "shopify_payments" };
 }
 
-describe("computeCashflow", () => {
+function bill(category: string, amount: number): ExpenseLine {
+  return { category, amount: minorUnits(amount) };
+}
+
+describe("computeCashflowWeek", () => {
   it("recognizes cashIn from order totals, regardless of payment gateway", () => {
-    const cash = sale("o1", 9500);
-    const statement = computeCashflow("2026-07", "GBP", [cash], []);
-    expect(statement.cashIn).toBe(9500);
+    const week = computeCashflowWeek("2026-07-13", "GBP", [sale("o1", 9500)], []);
+    expect(week.cashIn).toBe(9500);
+    expect(week.cashInByCategory).toEqual([{ category: "Revenue", amount: 9500 }]);
   });
 
   it("nets refunds out of cashIn", () => {
-    const statement = computeCashflow("2026-07", "GBP", [sale("o1", 10000), refund("o1", 3000)], []);
-    expect(statement.cashIn).toBe(7000);
+    const week = computeCashflowWeek("2026-07-13", "GBP", [sale("o1", 10000), refund("o1", 3000)], []);
+    expect(week.cashIn).toBe(7000);
   });
 
-  it("sums cash out from paid bill amounts (already filtered to the period by paidOn upstream)", () => {
-    const statement = computeCashflow("2026-07", "GBP", [sale("o1", 10000)], [minorUnits(1000), minorUnits(500)]);
-    expect(statement.cashOut).toBe(1500);
-    expect(statement.netCashFlow).toBe(8500);
-    expect(statement.billsPaidCount).toBe(2);
+  it("groups cash out by bill category and sums to cashOut", () => {
+    const week = computeCashflowWeek(
+      "2026-07-13",
+      "GBP",
+      [sale("o1", 10000)],
+      [bill("Advertising", 1000), bill("Rent", 500), bill("Advertising", 250)],
+    );
+    expect(week.cashOutByCategory).toEqual([
+      { category: "Advertising", amount: 1250 },
+      { category: "Rent", amount: 500 },
+    ]);
+    expect(week.cashOut).toBe(1750);
+    expect(week.netCashFlow).toBe(8250);
+    expect(week.billsPaidCount).toBe(3);
   });
 
-  it("renders zeroed-out for a period with no orders and no paid bills", () => {
-    const statement = computeCashflow("2026-07", null, [], []);
-    expect(statement.cashIn).toBe(0);
-    expect(statement.cashOut).toBe(0);
-    expect(statement.netCashFlow).toBe(0);
+  it("renders zeroed-out for a week with no orders and no paid bills", () => {
+    const week = computeCashflowWeek("2026-07-13", null, [], []);
+    expect(week.cashIn).toBe(0);
+    expect(week.cashInByCategory).toEqual([]);
+    expect(week.cashOut).toBe(0);
+    expect(week.cashOutByCategory).toEqual([]);
+    expect(week.netCashFlow).toBe(0);
   });
 });
