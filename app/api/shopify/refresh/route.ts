@@ -31,12 +31,14 @@ export async function POST(request: NextRequest) {
   returnUrl.searchParams.set("shop", shop);
 
   if (store.lastSyncAt && Date.now() - store.lastSyncAt.getTime() < COOLDOWN_MS) {
+    returnUrl.searchParams.set("refreshed", "cooldown");
     return NextResponse.redirect(returnUrl, { status: 303 });
   }
 
   try {
     await runSyncSweep(store);
     await prisma.store.update({ where: { id: store.id }, data: { lastSyncAt: new Date(), lastSyncError: null } });
+    returnUrl.searchParams.set("refreshed", "synced");
   } catch (error) {
     console.error(`Manual refresh failed for ${shop}:`, error);
     Sentry.captureException(error, { tags: { shop } });
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
       where: { id: store.id },
       data: { lastSyncAt: new Date(), lastSyncError: String(error).slice(0, 1000) },
     });
+    returnUrl.searchParams.set("refreshed", "error");
   }
 
   return NextResponse.redirect(returnUrl, { status: 303 });

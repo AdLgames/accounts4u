@@ -4,6 +4,7 @@ import { buildProfitAndLoss } from "@/lib/dashboard/profit-and-loss";
 import { resolveCurrentStore } from "@/lib/shopify/current-store";
 import { AppNav } from "./_components/app-nav";
 import { NotConnected } from "./_components/not-connected";
+import { RefreshStatus } from "./_components/refresh-status";
 import { Stat } from "./_components/stat";
 import { TrialBanner } from "./_components/trial-banner";
 import { firstParam } from "./_lib/search-params";
@@ -26,6 +27,7 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
   const params = await searchParams;
   const shop = firstParam(params.shop);
   const idToken = firstParam(params.id_token);
+  const refreshed = firstParam(params.refreshed);
 
   const store = await resolveCurrentStore(shop, idToken);
   if (!store || !shop) {
@@ -38,6 +40,7 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
   return (
     <div className="flex min-h-full flex-col">
       <AppNav shop={shop} current="/" />
+      <RefreshStatus status={refreshed} />
       <TrialBanner shop={shop} trialEndsAt={store.trialEndsAt} subscriptionStatus={store.subscriptionStatus} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         <h1 className="text-xl font-semibold">Profit &amp; Loss</h1>
