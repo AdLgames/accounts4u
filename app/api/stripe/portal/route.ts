@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No billing account yet — subscribe first" }, { status: 404 });
   }
 
-  const returnUrl = new URL("/settings", shopifyConfig.appUrl);
+  const returnUrl = new URL("/inputs", shopifyConfig.appUrl);
   returnUrl.searchParams.set("shop", shop);
 
   const session = await getStripeClient().billingPortal.sessions.create({

@@ -18,7 +18,7 @@ export function TrialBanner({
   if (readOnly) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/50 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-300">
-        <span>Your trial has ended — you can still view everything, but Settings changes are paused.</span>
+        <span>Your trial has ended — you can still view everything, but Inputs changes are paused.</span>
         <a
           href={`/api/stripe/checkout?shop=${encodeURIComponent(shop)}`}
           className="rounded-full bg-amber-900 px-3 py-1 font-medium text-amber-50 dark:bg-amber-300 dark:text-amber-950"
