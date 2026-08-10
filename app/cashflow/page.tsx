@@ -80,7 +80,7 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
             </div>
           </div>
           <Card className="mt-3 overflow-x-auto px-5 py-5">
-            <CashflowChart weeks={weeks} />
+            <CashflowChart weeks={weeks} currency={currency} />
           </Card>
         </section>
 

@@ -43,7 +43,7 @@ export default async function BalanceSheetPage({ searchParams }: PageProps<"/bal
     >
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
         <p className="rounded-2xl border border-black/10 bg-zinc-50 px-4 py-3 text-xs text-zinc-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400">
-          This is an estimate built from your Shopify payouts and the bills you&apos;ve recorded — not a real bank balance, and
+          This is an estimate built from your order revenue and the bills you&apos;ve recorded — not a real bank balance, and
           not tax advice. No bank connection, inventory value, or accounts receivable is tracked.
         </p>
 

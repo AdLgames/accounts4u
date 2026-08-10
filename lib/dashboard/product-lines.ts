@@ -23,6 +23,24 @@ interface RawProductPayload {
 }
 
 /**
+ * Merchants (and Shopify's own product_type field) are inconsistent about
+ * capitalization -- "SHOES", "shoes", "Shoes" are the same category to a
+ * human but, ungrouped, fragment P&L's revenue-by-category breakdown into
+ * near-duplicate rows. Normalizes to a single canonical display form
+ * (trimmed, single-spaced, title-cased) so grouping is case-insensitive
+ * without needing a separate "display label" concept downstream.
+ */
+export function normalizeCategoryLabel(value: string | null | undefined): string | null {
+  const trimmed = value?.trim().replace(/\s+/g, " ") ?? "";
+  if (!trimmed) return null;
+  return trimmed
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
  * raw_products is append-only (CLAUDE.md) -- a full catalog snapshot is
  * written on every sync, so multiple rows can exist per shopifyId over
  * time. Keeps only the most-recently-received row per product, same
@@ -91,7 +109,7 @@ export async function computeProductLines(storeId: string, orderIds: Set<string>
         lines.set(productId, {
           productId,
           title: String(item.title ?? "Untitled product"),
-          category: cost?.revenueCategory || productTypes.get(productId) || null,
+          category: normalizeCategoryLabel(cost?.revenueCategory || productTypes.get(productId)),
           quantity,
           revenue,
           cogs: cogsAmount,

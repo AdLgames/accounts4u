@@ -111,6 +111,13 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
           </p>
         )}
 
+        {statement.cogs === 0 && statement.revenue !== 0 && (
+          <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
+            No product costs set — gross profit above equals revenue, which overstates your real margin. Add a cost per
+            product in Inputs for an accurate number.
+          </p>
+        )}
+
         {statement.otherPaymentActivity !== 0 && (
           <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
             {money(currency, statement.otherPaymentActivity)} of other Shopify Payments activity this month (adjustments/reserves)
