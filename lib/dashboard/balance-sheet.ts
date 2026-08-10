@@ -1,14 +1,21 @@
+import { summarizeOrderEvents } from "../recon/order-financials";
 import { prisma } from "../db";
 import { add, minorUnits, subtract, type MinorUnits } from "../money";
-import { loadReconciledPayouts, type ReconciledPayout } from "./payout-ledger";
+import { loadOrderLedger } from "./order-ledger";
 
 export interface BalanceSheetSnapshot {
   asOf: Date;
   currency: string | null;
 
-  /** Lifetime payouts received minus lifetime bills paid — an ESTIMATE, not a real bank balance (no bank connection exists). */
+  /**
+   * Lifetime order revenue (net of refunds) minus lifetime bills paid — the
+   * same gateway-agnostic source P&L/Cashflow use, not Shopify Payments
+   * payout deposits. An ESTIMATE, not a real bank balance: no bank
+   * connection exists, and this doesn't net out payment processing fees
+   * (Shopify only exposes those for Shopify Payments, not other gateways).
+   */
   cashEstimate: MinorUnits;
-  /** Lifetime reconciled payout total × tax set-aside % — an ESTIMATE, not tax advice. */
+  /** Lifetime net sales × tax set-aside % — an ESTIMATE, not tax advice. Same figure P&L's "set aside for tax" is built from each month, so the two reconcile by construction instead of drifting apart. */
   taxReserveOwed: MinorUnits;
   unpaidBills: MinorUnits;
 
@@ -28,17 +35,15 @@ export interface BalanceSheetSnapshot {
 export function computeBalanceSheet(
   asOf: Date,
   currency: string | null,
-  allPayouts: ReconciledPayout[],
+  lifetimeNetSales: MinorUnits,
   paidBillAmounts: MinorUnits[],
   unpaidBillAmounts: MinorUnits[],
   taxSetAsidePercent: number,
 ): BalanceSheetSnapshot {
-  const lifetimePayoutsIn = add(...allPayouts.map((p) => p.payout.amount));
   const lifetimeBillsPaid = add(...paidBillAmounts);
-  const cashEstimate = subtract(lifetimePayoutsIn, lifetimeBillsPaid);
+  const cashEstimate = subtract(lifetimeNetSales, lifetimeBillsPaid);
 
-  const lifetimeNetTotal = add(...allPayouts.map((p) => p.breakdown.computedTotal));
-  const taxReserveOwed = minorUnits(Math.round((lifetimeNetTotal * taxSetAsidePercent) / 100));
+  const taxReserveOwed = minorUnits(Math.round((lifetimeNetSales * taxSetAsidePercent) / 100));
 
   const unpaidBills = add(...unpaidBillAmounts);
 
@@ -50,19 +55,21 @@ export function computeBalanceSheet(
 }
 
 export async function buildBalanceSheet(storeId: string, now = new Date()): Promise<BalanceSheetSnapshot> {
-  const [settings, allPayouts, paidBills, unpaidBills] = await Promise.all([
+  const [settings, orderLedger, paidBills, unpaidBills] = await Promise.all([
     prisma.storeSettings.upsert({ where: { storeId }, create: { storeId }, update: {} }),
-    loadReconciledPayouts(storeId),
+    loadOrderLedger(storeId),
     prisma.bill.findMany({ where: { storeId, status: "paid", paidOn: { lte: now } } }),
     prisma.bill.findMany({ where: { storeId, status: "unpaid" } }),
   ]);
 
-  const currency = allPayouts[0]?.payout.currency ?? null;
+  const eventsToDate = orderLedger.filter((event) => event.processedAt <= now);
+  const currency = eventsToDate[0]?.currency ?? null;
+  const lifetimeNetSales = summarizeOrderEvents(eventsToDate).netSales;
 
   return computeBalanceSheet(
     now,
     currency,
-    allPayouts,
+    lifetimeNetSales,
     paidBills.map((bill) => minorUnits(bill.amount)),
     unpaidBills.map((bill) => minorUnits(bill.amount)),
     settings.taxSetAsidePercent,
