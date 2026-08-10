@@ -32,7 +32,7 @@ export default async function CashflowPage({ searchParams }: PageProps<"/cashflo
   const idToken = firstParam(params.id_token);
   const refreshed = firstParam(params.refreshed);
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, "/cashflow");
   if (!store || !shop) {
     return <NotConnected />;
   }

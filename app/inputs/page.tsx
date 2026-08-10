@@ -33,7 +33,7 @@ export default async function InputsPage({ searchParams }: PageProps<"/inputs">)
   const billErrors: { row: number; message: string }[] = billErrorsRaw ? safeParseErrors(billErrorsRaw) : [];
   const refreshed = firstParam(params.refreshed);
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, "/inputs");
   if (!store || !shop) {
     return <NotConnected />;
   }

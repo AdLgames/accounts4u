@@ -19,7 +19,7 @@ export default async function BalanceSheetPage({ searchParams }: PageProps<"/bal
   const idToken = firstParam(params.id_token);
   const refreshed = firstParam(params.refreshed);
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, "/balance-sheet");
   if (!store || !shop) {
     return <NotConnected />;
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/db";
-import { isValidShopDomain } from "@/lib/shopify/domain";
+import { resolveAuthenticatedStore } from "@/lib/shopify/current-store";
 import { runSyncSweep } from "@/lib/shopify/sync";
 
 // Protects against duplicate raw rows and unnecessary Shopify API calls
@@ -18,13 +18,9 @@ export async function POST(request: NextRequest) {
   const shop = String(formData.get("shop") ?? "");
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
-  if (!isValidShopDomain(shop)) {
-    return NextResponse.json({ error: "Invalid shop parameter" }, { status: 400 });
-  }
-
-  const store = await prisma.store.findUnique({ where: { shopDomain: shop } });
+  const store = await resolveAuthenticatedStore(shop);
   if (!store) {
-    return NextResponse.json({ error: "Unknown store" }, { status: 404 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const returnUrl = new URL(redirectTo.startsWith("/") ? redirectTo : "/", request.url);

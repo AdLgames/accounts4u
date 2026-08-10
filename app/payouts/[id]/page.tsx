@@ -19,7 +19,7 @@ export default async function PayoutDetailPage({ params, searchParams }: PagePro
   const shop = firstParam(query.shop);
   const idToken = firstParam(query.id_token);
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, `/payouts/${encodeURIComponent(payoutId)}`);
   if (!store || !shop) {
     return <NotConnected />;
   }

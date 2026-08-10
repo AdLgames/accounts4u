@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { iframeBreakoutRedirect } from "@/lib/http/iframe-breakout";
-import { isValidShopDomain } from "@/lib/shopify/domain";
 import { shopifyConfig } from "@/lib/shopify/config";
+import { resolveAuthenticatedStore } from "@/lib/shopify/current-store";
 import { getStripeClient, stripeConfig } from "@/lib/stripe/client";
 
 export async function GET(request: NextRequest) {
-  const shop = request.nextUrl.searchParams.get("shop");
-  if (!shop || !isValidShopDomain(shop)) {
-    return NextResponse.json({ error: "Invalid or missing shop parameter" }, { status: 400 });
-  }
-
-  const store = await prisma.store.findUnique({ where: { shopDomain: shop } });
-  if (!store) {
-    return NextResponse.json({ error: "Unknown store" }, { status: 404 });
+  const shop = request.nextUrl.searchParams.get("shop") ?? undefined;
+  const store = await resolveAuthenticatedStore(shop);
+  if (!store || !shop) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const returnUrl = new URL("/", shopifyConfig.appUrl);

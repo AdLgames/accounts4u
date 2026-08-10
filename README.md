@@ -43,7 +43,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Deployed on Vercel, connected to a real Shopify dev store and Neon
 Postgres — env vars (`SHOPIFY_APP_URL`, `DATABASE_URL`, `SHOPIFY_API_KEY`,
-`NEXT_PUBLIC_SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `CRON_SECRET`) are set
-there. This sandbox itself still can't reach Shopify's, Neon's, or Vercel's
+`NEXT_PUBLIC_SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `CRON_SECRET`,
+`SESSION_SECRET`) are set there. This sandbox itself still can't reach Shopify's, Neon's, or Vercel's
 servers directly — all Phase 2 verification happened by the human running
 each step and reporting back logs/query results.

@@ -32,7 +32,7 @@ export default async function ProfitAndLossPage({ searchParams }: PageProps<"/">
   const refreshed = firstParam(params.refreshed);
   const trendMonths = firstParam(params.months) === "12" ? 12 : 6;
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, "/");
   if (!store || !shop) {
     return <NotConnected />;
   }

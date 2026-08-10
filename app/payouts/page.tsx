@@ -15,7 +15,7 @@ export default async function PayoutsPage({ searchParams }: PageProps<"/payouts"
   const idToken = firstParam(params.id_token);
   const refreshed = firstParam(params.refreshed);
 
-  const store = await resolveCurrentStore(shop, idToken);
+  const store = await resolveCurrentStore(shop, idToken, "/payouts");
   if (!store || !shop) {
     return <NotConnected />;
   }
