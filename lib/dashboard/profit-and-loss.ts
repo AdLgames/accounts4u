@@ -135,12 +135,21 @@ function monthWindow(now: Date, monthsAgo: number): { monthStart: Date; monthEnd
  * not "call buildProfitAndLoss N times", which would reload the same full
  * history N times for no benefit. Returned oldest-first, ending with the
  * current month.
+ *
+ * Bounds both loaders to the trend window (padded a month earlier, for
+ * safety margin -- see loadOrderLedger's doc comment) rather than loading
+ * the store's entire lifetime history, which this trend never needs and
+ * which gets expensive fast at real order volume.
  */
 export async function buildProfitAndLossTrend(storeId: string, months: number, now = new Date()): Promise<ProfitAndLossStatement[]> {
+  const { monthStart: earliestMonthStart } = monthWindow(now, months - 1);
+  const receivedSince = new Date(earliestMonthStart);
+  receivedSince.setUTCDate(receivedSince.getUTCDate() - 31);
+
   const [settings, orderLedger, paymentLedger] = await Promise.all([
     prisma.storeSettings.upsert({ where: { storeId }, create: { storeId }, update: {} }),
-    loadOrderLedger(storeId),
-    loadTransactionLedger(storeId),
+    loadOrderLedger(storeId, receivedSince),
+    loadTransactionLedger(storeId, receivedSince),
   ]);
 
   const statements: ProfitAndLossStatement[] = [];

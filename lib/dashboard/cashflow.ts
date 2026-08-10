@@ -94,9 +94,13 @@ const TRAILING_WEEKS = 13;
  */
 export async function buildCashflowTrailing13Weeks(storeId: string, now = new Date()): Promise<CashflowWeek[]> {
   const { weekStart: earliestStart } = weekWindow(now, TRAILING_WEEKS - 1);
+  // Padded a month earlier as safety margin for loadOrderLedger's
+  // receivedSince bound -- see that function's doc comment.
+  const receivedSince = new Date(earliestStart);
+  receivedSince.setUTCDate(receivedSince.getUTCDate() - 31);
 
   const [orderLedger, paidBills] = await Promise.all([
-    loadOrderLedger(storeId),
+    loadOrderLedger(storeId, receivedSince),
     prisma.bill.findMany({ where: { storeId, status: "paid", paidOn: { gte: earliestStart } } }),
   ]);
 

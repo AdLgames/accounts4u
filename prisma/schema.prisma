@@ -85,6 +85,11 @@ model RawOrder {
   receivedAt DateTime @default(now())
 
   @@index([storeId, shopifyId])
+  // Supports lib/dashboard/order-ledger.ts's receivedSince bound -- P&L
+  // trend and Cashflow only need a window of history, not a store's
+  // entire lifetime of orders, and this index is what makes that bounded
+  // query actually cheap instead of a full table scan per store.
+  @@index([storeId, receivedAt])
   @@map("raw_orders")
 }
 
@@ -115,6 +120,9 @@ model RawTransaction {
   receivedAt DateTime @default(now())
 
   @@index([storeId, shopifyId])
+  // Supports lib/dashboard/transaction-ledger.ts's receivedSince bound --
+  // same reasoning as RawOrder's matching index.
+  @@index([storeId, receivedAt])
   @@map("raw_transactions")
 }
 
