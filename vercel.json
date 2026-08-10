@@ -3,6 +3,10 @@
     {
       "path": "/api/shopify/sync",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/stripe/reconcile",
+      "schedule": "0 3 * * *"
     }
   ]
 }
