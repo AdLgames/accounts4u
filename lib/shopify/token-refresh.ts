@@ -21,7 +21,25 @@ type RefreshableStore = Pick<Store, "id" | "shopDomain" | "accessToken" | "refre
  * (lib/shopify/session.ts), just grant_type=refresh_token instead.
  */
 export async function getValidAccessToken(store: RefreshableStore): Promise<string> {
-  const needsRefresh = store.accessTokenExpiresAt !== null && store.accessTokenExpiresAt.getTime() - REFRESH_MARGIN_MS < Date.now();
+  if (store.accessTokenExpiresAt === null) {
+    // Never been through Token Exchange -- either a row that predates this
+    // app's Token Exchange rebuild, or (shouldn't happen once expiring=1 is
+    // honored) an exchange response that omitted expires_in. Either way
+    // this store is holding a legacy, non-expiring offline token, which
+    // Shopify is actively deprecating -- confirmed live via Partner
+    // Dashboard's API health monitoring flagging "Deprecated offline token
+    // use detected". There's no refresh_token to rotate and no id_token to
+    // re-exchange without the merchant present, so a background job can't
+    // silently fix this -- stop making Shopify calls with it instead of
+    // perpetuating deprecated-token traffic. Resolves itself the next time
+    // the merchant opens the embedded app (exchangeSessionToken re-runs and
+    // overwrites this row with an expiring token).
+    throw new Error(
+      `${store.shopDomain} still has a legacy (non-expiring) offline token -- ask the merchant to reopen the app once to re-authenticate.`,
+    );
+  }
+
+  const needsRefresh = store.accessTokenExpiresAt.getTime() - REFRESH_MARGIN_MS < Date.now();
 
   if (!needsRefresh || !store.refreshToken) {
     return store.accessToken;
